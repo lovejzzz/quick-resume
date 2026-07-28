@@ -59,3 +59,20 @@ test("keeps the example data and five layouts separate from the editor", async (
   assert.match(page, /Research-backed layouts/);
   assert.match(packageJson, /"name": "quicky-resume"/);
 });
+
+test("opens Style first and keeps fit and photo controls in their intended panels", async () => {
+  const page = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
+  const stylePanel = page.indexOf('{activeTab === "style"');
+  const exportPanel = page.indexOf('{activeTab === "export"');
+  const smartFit = page.indexOf("Smart one-page fit");
+
+  assert.match(page, /useState<"content" \| "style" \| "export">\("style"\)/);
+  assert.ok(stylePanel >= 0);
+  assert.ok(exportPanel > stylePanel);
+  assert.ok(smartFit > exportPanel);
+  assert.ok([...page.matchAll(/Smart one-page fit/g)].every((match) => (match.index ?? -1) > exportPanel));
+  assert.match(page, /className="photo-upload-action"/);
+  assert.match(page, /const removePhoto = \(\) =>/);
+  assert.match(page, /style\.showPhoto && data\.photo && \(\s*<img/);
+  assert.doesNotMatch(page, /import Image from "next\/image"/);
+});
