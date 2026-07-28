@@ -34,6 +34,7 @@ const initialStyle: ResumeStyle = {
   fitLevel: 0,
   fontAdjustments: {},
   layout: "modern",
+  photoPosition: "right",
   showPhoto: false,
 };
 
@@ -104,6 +105,159 @@ type ConfirmationRequest = {
   title: string;
   tone: "accent" | "danger";
 };
+
+type CollegeRecord = {
+  city: string;
+  name: string;
+  state: string;
+};
+
+let collegeDirectoryPromise: Promise<CollegeRecord[]> | null = null;
+
+function loadCollegeDirectory() {
+  if (!collegeDirectoryPromise) {
+    collegeDirectoryPromise = fetch("/data/us-colleges.json")
+      .then((response) => {
+        if (!response.ok) throw new Error("College directory could not be loaded.");
+        return response.json() as Promise<CollegeRecord[]>;
+      })
+      .catch((error) => {
+        collegeDirectoryPromise = null;
+        throw error;
+      });
+  }
+  return collegeDirectoryPromise;
+}
+
+type SchoolAutocompleteProps = {
+  entryId: string;
+  onChange: (value: string) => void;
+  value: string;
+};
+
+function SchoolAutocomplete({ entryId, onChange, value }: SchoolAutocompleteProps) {
+  const [colleges, setColleges] = useState<CollegeRecord[]>([]);
+  const [isOpen, setIsOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const listId = `school-options-${entryId}`;
+  const query = value.trim().toLocaleLowerCase();
+  const suggestions = useMemo(() => {
+    if (query.length < 2) return [];
+    const prefix: CollegeRecord[] = [];
+    const contains: CollegeRecord[] = [];
+    for (const college of colleges) {
+      const name = college.name.toLocaleLowerCase();
+      const location = `${college.city} ${college.state}`.toLocaleLowerCase();
+      if (name.startsWith(query)) prefix.push(college);
+      else if (name.includes(query) || location.includes(query)) contains.push(college);
+      if (prefix.length + contains.length >= 24) break;
+    }
+    return [...prefix, ...contains].slice(0, 8);
+  }, [colleges, query]);
+
+  const openDirectory = () => {
+    setIsOpen(true);
+    if (colleges.length || isLoading) return;
+    setIsLoading(true);
+    setLoadFailed(false);
+    loadCollegeDirectory()
+      .then(setColleges)
+      .catch(() => setLoadFailed(true))
+      .finally(() => setIsLoading(false));
+  };
+
+  const chooseCollege = (college: CollegeRecord) => {
+    onChange(college.name);
+    setIsOpen(false);
+    setActiveIndex(0);
+  };
+
+  const handleKeyDown = (event: ReactKeyboardEvent<HTMLInputElement>) => {
+    if (event.key === "Escape") {
+      setIsOpen(false);
+      return;
+    }
+    if (!suggestions.length) return;
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      setIsOpen(true);
+      setActiveIndex((current) => (current + 1) % suggestions.length);
+    } else if (event.key === "ArrowUp") {
+      event.preventDefault();
+      setIsOpen(true);
+      setActiveIndex((current) => (current - 1 + suggestions.length) % suggestions.length);
+    } else if (event.key === "Enter" && isOpen) {
+      event.preventDefault();
+      chooseCollege(suggestions[activeIndex] || suggestions[0]);
+    }
+  };
+
+  const showMenu = isOpen && query.length >= 2;
+
+  return (
+    <div
+      className="school-autocomplete"
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setIsOpen(false);
+      }}
+    >
+      <label className="field">
+        <span>School</span>
+        <input
+          aria-autocomplete="list"
+          aria-controls={listId}
+          aria-expanded={showMenu}
+          aria-haspopup="listbox"
+          autoComplete="off"
+          onChange={(event) => {
+            onChange(event.target.value);
+            setActiveIndex(0);
+            openDirectory();
+          }}
+          onFocus={openDirectory}
+          onKeyDown={handleKeyDown}
+          placeholder="Start typing a U.S. college"
+          role="combobox"
+          value={value}
+        />
+      </label>
+      {showMenu && (
+        <div className="school-suggestion-menu">
+          {isLoading ? (
+            <p className="school-suggestion-status">Loading colleges…</p>
+          ) : loadFailed ? (
+            <p className="school-suggestion-status">Suggestions are unavailable. You can still type any school.</p>
+          ) : suggestions.length ? (
+            <ul id={listId} role="listbox">
+              {suggestions.map((college, index) => (
+                <li
+                  aria-selected={index === activeIndex}
+                  className={index === activeIndex ? "active" : ""}
+                  key={`${college.name}-${college.city}-${college.state}`}
+                  role="option"
+                >
+                  <button
+                    onClick={() => chooseCollege(college)}
+                    onMouseDown={(event) => event.preventDefault()}
+                    type="button"
+                  >
+                    <strong>{college.name}</strong>
+                    <span>{[college.city, college.state].filter(Boolean).join(", ")}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="school-suggestion-status">No matching U.S. college. You can keep your custom entry.</p>
+          )}
+          <p className="school-directory-credit">U.S. Department of Education · IPEDS</p>
+        </div>
+      )}
+    </div>
+  );
+}
 
 function InlineEdit({
   as: Tag = "span",
@@ -196,6 +350,7 @@ export default function Home() {
   const [exporting, setExporting] = useState(false);
   const [autoFitting, setAutoFitting] = useState(false);
   const [photoError, setPhotoError] = useState("");
+  const [draggingPhoto, setDraggingPhoto] = useState(false);
   const [draggedSection, setDraggedSection] = useState<string | null>(null);
   const [activeText, setActiveText] = useState<{ id: string; label: string; top: number } | null>(null);
   const [pageCount, setPageCount] = useState(1);
@@ -523,7 +678,22 @@ export default function Home() {
   const removePhoto = () => {
     updateContact("photo", "");
     setStyle((current) => ({ ...current, showPhoto: false }));
+    setDraggingPhoto(false);
     setPhotoError("");
+  };
+
+  const movePhoto = (photoPosition: ResumeStyle["photoPosition"]) => {
+    setStyle((current) => ({ ...current, photoPosition }));
+  };
+
+  const dropPhoto = (event: DragEvent<HTMLElement>) => {
+    event.preventDefault();
+    const bounds = event.currentTarget.getBoundingClientRect();
+    const x = event.clientX - bounds.left;
+    const y = event.clientY - bounds.top;
+    const photoPosition = y < bounds.height * 0.3 ? "top" : x < bounds.width / 2 ? "left" : "right";
+    movePhoto(photoPosition);
+    setDraggingPhoto(false);
   };
 
   const downloadImage = async (format: "png" | "jpg") => {
@@ -851,10 +1021,18 @@ export default function Home() {
 
                               {section.kind !== "summary" && (
                                 <div className="field-grid two">
-                                  <label className="field">
-                                    <span>{section.kind === "education" ? "School" : section.kind === "skills" ? "Category" : "Title"}</span>
-                                    <input value={entry.heading} onChange={(event) => updateEntry(section.id, entry.id, { heading: event.target.value })} />
-                                  </label>
+                                  {section.kind === "education" ? (
+                                    <SchoolAutocomplete
+                                      entryId={entry.id}
+                                      onChange={(value) => updateEntry(section.id, entry.id, { heading: value })}
+                                      value={entry.heading}
+                                    />
+                                  ) : (
+                                    <label className="field">
+                                      <span>{section.kind === "skills" ? "Category" : "Title"}</span>
+                                      <input value={entry.heading} onChange={(event) => updateEntry(section.id, entry.id, { heading: event.target.value })} />
+                                    </label>
+                                  )}
                                   {section.kind !== "skills" && section.kind !== "awards" && (
                                     <label className="field">
                                       <span>{section.kind === "education" ? "Degree" : "Organization / role"}</span>
@@ -1057,6 +1235,25 @@ export default function Home() {
                       type="checkbox"
                     />
                   </label>
+                  {data.photo && style.showPhoto && (
+                    <fieldset className="photo-position-control">
+                      <legend>Photo position</legend>
+                      <div className="segmented">
+                        {(["left", "top", "right"] as const).map((position) => (
+                          <button
+                            aria-pressed={style.photoPosition === position}
+                            className={style.photoPosition === position ? "selected" : ""}
+                            key={position}
+                            onClick={() => movePhoto(position)}
+                            type="button"
+                          >
+                            {position}
+                          </button>
+                        ))}
+                      </div>
+                      <small>Or drag the photo in the preview. The header text will reflow around it.</small>
+                    </fieldset>
+                  )}
                 </div>
 
                 <button className="secondary-button" onClick={resetResume} type="button">Reset starter content</button>
@@ -1205,8 +1402,20 @@ export default function Home() {
               ref={resumeRef}
               style={{ "--resume-accent": style.accent, ...resumeFitVariables } as React.CSSProperties}
             >
-              <header className={style.showPhoto && data.photo ? "resume-header with-photo" : "resume-header"}>
-                <div>
+              <header
+                className={
+                  style.showPhoto && data.photo
+                    ? `resume-header with-photo photo-${style.photoPosition}${draggingPhoto ? " photo-dragging" : ""}`
+                    : "resume-header"
+                }
+                onDragOver={(event) => {
+                  if (!style.showPhoto || !data.photo) return;
+                  event.preventDefault();
+                  event.dataTransfer.dropEffect = "move";
+                }}
+                onDrop={dropPhoto}
+              >
+                <div className="resume-identity">
                   <InlineEdit
                     {...inlineFontProps("contact:name", "var(--name-size, 34px)")}
                     as="h2"
@@ -1248,9 +1457,32 @@ export default function Home() {
                 </div>
                 {style.showPhoto && data.photo && (
                   <img
-                    alt={`${data.name} portrait`}
+                    aria-label={`Move ${data.name || "resume"} photo. Drag it, or use the left, up, and right arrow keys.`}
+                    alt=""
+                    draggable
                     height={82}
+                    onDragEnd={() => setDraggingPhoto(false)}
+                    onDragStart={(event) => {
+                      event.dataTransfer.effectAllowed = "move";
+                      event.dataTransfer.setData("text/plain", "resume-photo");
+                      setDraggingPhoto(true);
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key === "ArrowLeft") {
+                        event.preventDefault();
+                        movePhoto("left");
+                      } else if (event.key === "ArrowUp") {
+                        event.preventDefault();
+                        movePhoto("top");
+                      } else if (event.key === "ArrowRight") {
+                        event.preventDefault();
+                        movePhoto("right");
+                      }
+                    }}
+                    role="button"
                     src={data.photo}
+                    tabIndex={0}
+                    title="Drag to reposition photo"
                     width={82}
                   />
                 )}
@@ -1473,7 +1705,7 @@ export default function Home() {
       )}
 
       <details className="version-widget no-print">
-        <summary aria-label="Open the Quicky Resume version 0.2.4 changelog">v0.2.4</summary>
+        <summary aria-label="Open the Quicky Resume version 0.2.5 changelog">v0.2.5</summary>
         <aside className="changelog-card" aria-label="Quicky Resume changelog">
           <div className="changelog-heading">
             <div>
@@ -1482,6 +1714,17 @@ export default function Home() {
             </div>
             <span>Latest</span>
           </div>
+          <section className="changelog-release">
+            <div>
+              <strong>v0.2.5</strong>
+              <time dateTime="2026-07-28">Jul 28, 2026</time>
+            </div>
+            <ul>
+              <li>Branded browser tab icon</li>
+              <li>U.S. college autocomplete powered by an IPEDS directory snapshot</li>
+              <li>Draggable resume photo with smart header reflow</li>
+            </ul>
+          </section>
           <section className="changelog-release">
             <div>
               <strong>v0.2.4</strong>

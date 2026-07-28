@@ -25,6 +25,9 @@ export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title,
   description,
+  icons: {
+    icon: [{ url: "/favicon.png", sizes: "64x64", type: "image/png" }],
+  },
   openGraph: {
     title,
     description,

@@ -717,6 +717,96 @@ button {
   box-shadow: 0 0 0 3px rgba(79, 135, 131, 0.12);
 }
 
+.school-autocomplete {
+  position: relative;
+  min-width: 0;
+  z-index: 12;
+}
+
+.section-card:focus-within {
+  position: relative;
+  z-index: 20;
+}
+
+.school-suggestion-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  width: min(390px, calc(200% + 13px));
+  max-height: 318px;
+  border: 1px solid #ccd7d4;
+  border-radius: 11px;
+  background: rgba(255, 255, 255, 0.99);
+  box-shadow: 0 16px 34px rgba(26, 45, 41, 0.16);
+  overflow: hidden;
+  z-index: 80;
+}
+
+.school-suggestion-menu ul {
+  max-height: 274px;
+  margin: 0;
+  padding: 5px;
+  list-style: none;
+  overflow-y: auto;
+}
+
+.school-suggestion-menu li {
+  border-radius: 7px;
+}
+
+.school-suggestion-menu li.active {
+  background: #edf5f3;
+}
+
+.school-suggestion-menu button {
+  width: 100%;
+  padding: 8px 9px;
+  display: grid;
+  gap: 2px;
+  border: 0;
+  border-radius: 7px;
+  color: #243431;
+  background: transparent;
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+}
+
+.school-suggestion-menu button:hover,
+.school-suggestion-menu button:focus-visible {
+  background: #e8f2f0;
+  outline: none;
+}
+
+.school-suggestion-menu strong {
+  font-size: 11px;
+  line-height: 1.3;
+}
+
+.school-suggestion-menu button span {
+  color: #76837f;
+  font-size: 9px;
+}
+
+.school-suggestion-status {
+  margin: 0;
+  padding: 13px;
+  color: #6f7d79;
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+.school-directory-credit {
+  margin: 0;
+  padding: 7px 12px;
+  border-top: 1px solid #e6ebe9;
+  color: #909b98;
+  background: #f7f9f8;
+  font-size: 8px;
+  font-weight: 680;
+  letter-spacing: 0.025em;
+}
+
 .upload-field input {
   padding: 7px 8px;
   color: #64716e;
@@ -732,7 +822,7 @@ button {
   border: 1px solid #dce2e0;
   border-radius: 12px;
   background: #fff;
-  overflow: hidden;
+  overflow: visible;
   box-shadow: 0 2px 4px rgba(29, 40, 39, 0.025);
   transition: opacity 140ms ease, border 140ms ease;
 }
@@ -751,6 +841,7 @@ button {
   gap: 7px;
   background: #f6f8f7;
   border-bottom: 1px solid #e5eae8;
+  border-radius: 11px 11px 0 0;
 }
 
 .drag-handle {
@@ -1250,6 +1341,34 @@ button {
   background: transparent;
 }
 
+.photo-position-control {
+  margin: 13px 0 0;
+  padding: 13px 0 0;
+  border: 0;
+  border-top: 1px solid #e1e7e5;
+}
+
+.photo-position-control legend {
+  margin-bottom: 8px;
+  color: #67736f;
+  font-size: 9px;
+  font-weight: 720;
+  letter-spacing: 0.045em;
+  text-transform: uppercase;
+}
+
+.photo-position-control .segmented {
+  width: 100%;
+}
+
+.photo-position-control small {
+  margin-top: 8px;
+  display: block;
+  color: #7c8885;
+  font-size: 9px;
+  line-height: 1.45;
+}
+
 .smart-fit-card {
   margin: 0 0 24px;
   padding: 16px;
@@ -1565,20 +1684,37 @@ button {
   text-align: center;
 }
 
-.resume-paper.layout-executive .resume-header.with-photo {
+.resume-paper.layout-executive .resume-header.photo-left,
+.resume-paper.layout-executive .resume-header.photo-right {
   grid-template-columns: 82px 1fr 82px;
 }
 
-.resume-paper.layout-executive .resume-header.with-photo::before {
+.resume-paper.layout-executive .resume-header.photo-left::before,
+.resume-paper.layout-executive .resume-header.photo-right::before {
   content: "";
+  grid-row: 1;
 }
 
-.resume-paper.layout-executive .resume-header.with-photo img {
+.resume-paper.layout-executive .resume-header.photo-right::before {
+  grid-column: 1;
+}
+
+.resume-paper.layout-executive .resume-header.photo-left::before {
+  grid-column: 3;
+}
+
+.resume-paper.layout-executive .resume-header.photo-right img {
   grid-column: 3;
   grid-row: 1;
 }
 
-.resume-paper.layout-executive .resume-header.with-photo > div {
+.resume-paper.layout-executive .resume-header.photo-left img {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.resume-paper.layout-executive .resume-header.photo-left .resume-identity,
+.resume-paper.layout-executive .resume-header.photo-right .resume-identity {
   grid-column: 2;
   grid-row: 1;
 }
@@ -1741,9 +1877,56 @@ button {
 
 .resume-header.with-photo {
   display: grid;
-  grid-template-columns: 1fr 82px;
   align-items: start;
   gap: 24px;
+}
+
+.resume-header.photo-right {
+  grid-template-columns: minmax(0, 1fr) 82px;
+}
+
+.resume-header.photo-right .resume-identity {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.resume-header.photo-right img {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.resume-header.photo-left {
+  grid-template-columns: 82px minmax(0, 1fr);
+}
+
+.resume-header.photo-left img {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.resume-header.photo-left .resume-identity {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.resume-header.photo-top {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 13px;
+}
+
+.resume-header.photo-top img {
+  grid-column: 1;
+  grid-row: 1;
+  justify-self: center;
+}
+
+.resume-header.photo-top .resume-identity {
+  grid-column: 1;
+  grid-row: 2;
+}
+
+.resume-identity {
+  min-width: 0;
 }
 
 .resume-header img {
@@ -1753,6 +1936,27 @@ button {
   object-fit: cover;
   border: 3px solid white;
   outline: 1px solid #d8dfdd;
+  cursor: grab;
+  user-select: none;
+  transition: box-shadow 140ms ease, transform 140ms ease;
+}
+
+.resume-header img:hover,
+.resume-header img:focus-visible {
+  box-shadow: 0 0 0 4px rgba(40, 96, 93, 0.18);
+  outline: 2px solid var(--resume-accent);
+  outline-offset: 2px;
+}
+
+.resume-header img:active {
+  cursor: grabbing;
+  transform: scale(0.97);
+}
+
+.resume-header.photo-dragging {
+  border-radius: 8px 8px 0 0;
+  background: rgba(40, 96, 93, 0.07);
+  box-shadow: inset 0 0 0 2px rgba(40, 96, 93, 0.3);
 }
 
 .resume-header h2 {
@@ -1995,6 +2199,10 @@ button {
 
   .field-grid.two {
     grid-template-columns: 1fr;
+  }
+
+  .school-suggestion-menu {
+    width: 100%;
   }
 
   .format-grid {

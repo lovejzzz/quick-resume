@@ -14,10 +14,12 @@ logic.
 
 - Edit through structured form fields or directly in the resume preview
 - Add, remove, rename, and reorder resume sections
-- Locally autosave changes without an account or database
+- Save changes locally without an account or database
+- Find U.S. colleges and universities with a local NCES/IPEDS autocomplete
 - Apply per-row font-size adjustments with `−`, `+`, and reset controls
 - Use smart one-page fitting that compresses spacing before typography
-- Upload an optional photo
+- Upload an optional photo, then drag it left, above, or right while the header
+  reflows around it
 - Choose from five research-backed layouts, then fine-tune typography, spacing,
   and accent color
 - Export selectable-text PDF through the browser print dialog
@@ -42,6 +44,12 @@ npm run build
 npm test
 npm run lint
 ```
+
+## Release versioning
+
+Release versions advance by exactly `0.0.1` each time (for example, `0.2.4` to
+`0.2.5`). Keep the package version, in-app version badge, and changelog entry in
+sync for every release.
 
 ## Use a different starter resume
 
