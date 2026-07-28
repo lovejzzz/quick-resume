@@ -11,7 +11,6 @@ import {
   useState,
 } from "react";
 import html2canvas from "html2canvas";
-import Image from "next/image";
 import { tianXingExample } from "./examples/tian-xing";
 import type {
   ResumeData,
@@ -177,12 +176,13 @@ function InlineEdit({
 export default function Home() {
   const [data, setData] = useState<ResumeData>(initialData);
   const [style, setStyle] = useState<ResumeStyle>(initialStyle);
-  const [activeTab, setActiveTab] = useState<"content" | "style" | "export">("content");
+  const [activeTab, setActiveTab] = useState<"content" | "style" | "export">("style");
   const [exportFormat, setExportFormat] = useState<"png" | "jpg" | "pdf">("pdf");
   const [exportScale, setExportScale] = useState(2);
   const [jpgQuality, setJpgQuality] = useState(0.9);
   const [exporting, setExporting] = useState(false);
   const [autoFitting, setAutoFitting] = useState(false);
+  const [photoError, setPhotoError] = useState("");
   const [draggedSection, setDraggedSection] = useState<string | null>(null);
   const [activeText, setActiveText] = useState<{ id: string; label: string; top: number } | null>(null);
   const [pageCount, setPageCount] = useState(1);
@@ -441,24 +441,47 @@ export default function Home() {
   };
 
   const handlePhoto = (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
+    const input = event.currentTarget;
+    const file = input.files?.[0];
     if (!file) return;
+    setPhotoError("");
     const reader = new FileReader();
+    reader.onerror = () => {
+      setPhotoError("That photo could not be read. Try another PNG or JPG.");
+      input.value = "";
+    };
     reader.onload = () => {
       const image = new window.Image();
+      image.onerror = () => {
+        setPhotoError("That photo could not be opened. Try another PNG or JPG.");
+        input.value = "";
+      };
       image.onload = () => {
         const max = 600;
         const ratio = Math.min(1, max / Math.max(image.width, image.height));
         const canvas = document.createElement("canvas");
         canvas.width = Math.round(image.width * ratio);
         canvas.height = Math.round(image.height * ratio);
-        canvas.getContext("2d")?.drawImage(image, 0, 0, canvas.width, canvas.height);
+        const context = canvas.getContext("2d");
+        if (!context) {
+          setPhotoError("Your browser could not prepare that photo.");
+          input.value = "";
+          return;
+        }
+        context.drawImage(image, 0, 0, canvas.width, canvas.height);
         updateContact("photo", canvas.toDataURL("image/jpeg", 0.84));
         setStyle((current) => ({ ...current, showPhoto: true }));
+        input.value = "";
       };
       image.src = String(reader.result);
     };
     reader.readAsDataURL(file);
+  };
+
+  const removePhoto = () => {
+    updateContact("photo", "");
+    setStyle((current) => ({ ...current, showPhoto: false }));
+    setPhotoError("");
   };
 
   const downloadImage = async (format: "png" | "jpg") => {
@@ -844,18 +867,56 @@ export default function Home() {
                   </div>
                 </label>
 
-                <label className="toggle-row">
-                  <span>
-                    <strong>Show photo</strong>
-                    <small>{data.photo ? "Include your uploaded photo" : "Upload a photo in Content first"}</small>
-                  </span>
-                  <input
-                    checked={style.showPhoto}
-                    disabled={!data.photo}
-                    onChange={(event) => setStyle((current) => ({ ...current, showPhoto: event.target.checked }))}
-                    type="checkbox"
-                  />
-                </label>
+                <div className="photo-control-card">
+                  <div className="photo-control-heading">
+                    {data.photo ? (
+                      <img alt={`${data.name} photo preview`} height="54" src={data.photo} width="54" />
+                    ) : (
+                      <span aria-hidden="true" className="photo-placeholder">Photo</span>
+                    )}
+                    <span>
+                      <strong>Resume photo</strong>
+                      <small>PNG or JPG; cropped automatically</small>
+                    </span>
+                  </div>
+                  <div className="photo-action-row">
+                    <label className="photo-upload-action">
+                      {data.photo ? "Replace photo" : "Upload photo"}
+                      <input accept="image/png,image/jpeg" onChange={handlePhoto} type="file" />
+                    </label>
+                    {data.photo && (
+                      <button className="photo-remove-action" onClick={removePhoto} type="button">
+                        Remove
+                      </button>
+                    )}
+                  </div>
+                  {photoError && <p className="photo-error" role="alert">{photoError}</p>}
+                  <label className="toggle-row photo-toggle">
+                    <span>
+                      <strong>Show photo</strong>
+                      <small>{data.photo ? "Include the uploaded photo" : "Upload a photo to enable this"}</small>
+                    </span>
+                    <input
+                      checked={style.showPhoto && Boolean(data.photo)}
+                      disabled={!data.photo}
+                      onChange={(event) => setStyle((current) => ({ ...current, showPhoto: event.target.checked }))}
+                      type="checkbox"
+                    />
+                  </label>
+                </div>
+
+                <button className="secondary-button" onClick={resetResume} type="button">Reset starter content</button>
+              </section>
+            )}
+
+            {activeTab === "export" && (
+              <section className="panel-block export-panel">
+                <div className="panel-heading">
+                  <div>
+                    <p className="eyebrow">Output</p>
+                    <h2>Download your resume</h2>
+                  </div>
+                </div>
 
                 <div className="smart-fit-card">
                   <div className="smart-fit-heading">
@@ -897,19 +958,6 @@ export default function Home() {
                     Nothing is removed. Smart fit tightens gaps and margins before making small,
                     readability-safe type adjustments.
                   </p>
-                </div>
-
-                <button className="secondary-button" onClick={resetResume} type="button">Reset starter content</button>
-              </section>
-            )}
-
-            {activeTab === "export" && (
-              <section className="panel-block export-panel">
-                <div className="panel-heading">
-                  <div>
-                    <p className="eyebrow">Output</p>
-                    <h2>Download your resume</h2>
-                  </div>
                 </div>
 
                 <div className="format-grid" role="radiogroup" aria-label="Export format">
@@ -1049,11 +1097,10 @@ export default function Home() {
                   </div>
                 </div>
                 {style.showPhoto && data.photo && (
-                  <Image
+                  <img
                     alt={`${data.name} portrait`}
                     height={82}
                     src={data.photo}
-                    unoptimized
                     width={82}
                   />
                 )}
