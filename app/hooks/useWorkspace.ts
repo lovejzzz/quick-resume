@@ -41,7 +41,10 @@ const snapshotOf = (document: ResumeDocument): Snapshot => ({
 });
 
 const serialize = (workspace: Workspace) =>
-  JSON.stringify(workspace.documents.map(({ data, style, title }) => ({ data, style, title })));
+  JSON.stringify({
+    activeId: workspace.activeId,
+    documents: workspace.documents.map(({ data, style, title }) => ({ data, style, title })),
+  });
 
 export function useWorkspace() {
   const [workspace, setWorkspace] = useState<Workspace>(starterWorkspace);

@@ -13,7 +13,13 @@ export function ServiceWorker() {
     if (!("serviceWorker" in navigator)) return;
     const register = () => {
       navigator.serviceWorker
-        .register(assetPath("/sw.js"), { scope: `${basePath}/` })
+        .register(assetPath("/sw.js"), {
+          scope: `${basePath}/`,
+          // Always revalidate the worker script and anything it imports.
+          // Otherwise an older offline shell can survive a new deployment.
+          updateViaCache: "none",
+        })
+        .then((registration) => registration.update())
         .catch(() => {
           // Offline support is an enhancement; failing to register is not fatal.
         });

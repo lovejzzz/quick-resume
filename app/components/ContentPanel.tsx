@@ -21,7 +21,14 @@ import { useRef, useState, type ChangeEvent, type RefObject } from "react";
 import { SchoolAutocomplete } from "./SchoolAutocomplete";
 import { SortableSectionCard } from "./SortableSectionCard";
 import { sectionTemplates } from "../lib/fit";
-import { importByOcr, importResumeFile, type ImportResult, type OcrProgress, type OcrRetry } from "../lib/import-resume";
+import {
+  getOcrPagePlan,
+  importByOcr,
+  importResumeFile,
+  type ImportResult,
+  type OcrProgress,
+  type OcrRetry,
+} from "../lib/import-resume";
 import {
   makeId,
   type ResumeData,
@@ -59,6 +66,7 @@ export function ContentPanel({
   const [ocrProgress, setOcrProgress] = useState<OcrProgress | null>(null);
   const ocrAbort = useRef<AbortController | null>(null);
   const importInputRef = useRef<HTMLInputElement>(null);
+  const ocrPagePlan = ocrOffer ? getOcrPagePlan(ocrOffer.pages) : null;
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -277,10 +285,15 @@ export function ContentPanel({
                   Recognises the page images on this device. Downloads a 6.7 MB engine the first time, then
                   works offline. Accuracy is good but not perfect — you will need to check the result,
                   especially your email and phone.
+                  {ocrPagePlan?.truncated
+                    ? ` This pass reads the first ${ocrPagePlan.pagesToRead} of ${ocrPagePlan.totalPages} pages.`
+                    : ""}
                 </small>
               </div>
               <button className="ocr-run" onClick={() => runOcr(ocrOffer)} type="button">
-                Read {ocrOffer.pages === 1 ? "the page" : `all ${ocrOffer.pages} pages`}
+                {ocrPagePlan?.truncated
+                  ? `Read first ${ocrPagePlan.pagesToRead} pages`
+                  : `Read ${ocrOffer.pages === 1 ? "the page" : `all ${ocrOffer.pages} pages`}`}
               </button>
             </div>
           )}

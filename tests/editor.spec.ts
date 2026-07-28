@@ -1,4 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
+import { tianXingExample } from "../app/examples/tian-xing";
+import { defaultStyle } from "../app/lib/storage";
 
 /**
  * Behaviour tests against the real static export. These assert what a user can
@@ -30,11 +32,12 @@ test.describe("editor shell", () => {
     await expect(page.locator(".resume-section")).not.toHaveCount(0);
   });
 
-  test("exposes all four editor tabs", async ({ page }) => {
+  test("exposes all three editor tabs", async ({ page }) => {
     await openEditor(page);
-    for (const tab of ["Content", "Style", "Review", "Export"]) {
+    for (const tab of ["Content", "Style", "Export"]) {
       await expect(page.getByRole("button", { name: tab, exact: true })).toBeVisible();
     }
+    await expect(page.getByRole("button", { name: "Review", exact: true })).toHaveCount(0);
   });
 
   test("skip link moves focus to the preview", async ({ page }) => {
@@ -71,6 +74,58 @@ test.describe("inline editing", () => {
     await expect(name).toHaveText("Grace Hopper");
     await expect(name.locator("b, i, img")).toHaveCount(0);
     expect(await page.evaluate(() => (window as unknown as { __xss?: number }).__xss)).toBeUndefined();
+  });
+});
+
+test.describe("photo placement", () => {
+  test("keeps text runaround after the photo is dropped", async ({ page }) => {
+    await seedStorage(page, {
+      version: 2,
+      activeId: "photo-test",
+      documents: [
+        {
+          id: "photo-test",
+          title: "Photo test",
+          updatedAt: 1,
+          data: {
+            ...tianXingExample,
+            photo:
+              "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9Z2S8AAAAASUVORK5CYII=",
+          },
+          style: { ...defaultStyle, showPhoto: true },
+        },
+      ],
+    });
+    await openEditor(page);
+
+    const photo = page.locator(".resume-photo");
+    const identity = page.locator(".resume-identity");
+    const photoBox = await photo.boundingBox();
+    const identityBox = await identity.boundingBox();
+    expect(photoBox).not.toBeNull();
+    expect(identityBox).not.toBeNull();
+    if (!photoBox || !identityBox) return;
+
+    await page.mouse.move(photoBox.x + photoBox.width / 2, photoBox.y + photoBox.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(
+      identityBox.x + identityBox.width * 0.28,
+      identityBox.y + Math.min(identityBox.height / 2, 30),
+      { steps: 8 },
+    );
+    await page.mouse.up();
+
+    // The old bug re-enabled transitions before measuring the final layout,
+    // replacing the drag margin with a near-zero value after 230ms.
+    await page.waitForTimeout(350);
+    await expect(identity).toHaveAttribute("data-photo-side", "right");
+    const settledMargin = await identity.evaluate((element) =>
+      Math.max(
+        Number.parseFloat(getComputedStyle(element).marginLeft) || 0,
+        Number.parseFloat(getComputedStyle(element).marginRight) || 0,
+      ),
+    );
+    expect(settledMargin).toBeGreaterThan(40);
   });
 });
 
@@ -172,24 +227,30 @@ test.describe("undo and redo", () => {
   });
 });
 
-test.describe("multiple resumes", () => {
-  test("creates a second resume and keeps the two separate", async ({ page }) => {
+test.describe("offline shell", () => {
+  test("does not delete caches owned by another app on the origin", async ({ page }) => {
+    // Seed Cache Storage from a same-origin page that does not register the
+    // application's worker, so the following navigation performs a clean
+    // install and activation.
+    await page.goto("/manifest.webmanifest");
+    await page.evaluate(async () => {
+      const registrations = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(registrations.map((registration) => registration.unregister()));
+      const keys = await caches.keys();
+      await Promise.all(keys.map((key) => caches.delete(key)));
+      await caches.open("unrelated-app-v1");
+      await caches.open("quicky-resume-v1");
+    });
+
     await openEditor(page);
-    await page.getByRole("button", { name: /switch resume/i }).click();
-    await page.getByRole("button", { name: "New blank", exact: true }).click();
-
-    // A blank resume has no name text.
-    await expect(page.locator(".resume-paper h2")).toHaveText("");
-
-    const name = page.locator(".resume-paper h2");
-    await name.click();
-    await page.keyboard.type("Second Resume");
-    await name.blur();
-    await expect(name).toHaveText("Second Resume");
-
-    await page.getByRole("button", { name: /switch resume/i }).click();
-    await page.getByRole("menuitem").first().click();
-    await expect(page.locator(".resume-paper")).toContainText("Tian Xing");
+    await page.waitForFunction(
+      async () => (await navigator.serviceWorker.getRegistration())?.active?.state === "activated",
+    );
+    await expect
+      .poll(async () => await page.evaluate(async () => await caches.keys()))
+      .not.toContain("quicky-resume-v1");
+    const cacheKeys = await page.evaluate(async () => await caches.keys());
+    expect(cacheKeys).toContain("unrelated-app-v1");
   });
 });
 
@@ -208,25 +269,6 @@ test.describe("one-page fitting", () => {
     await expect(page.locator(".preview-toolbar")).toContainText("A4");
     const width = await page.locator(".resume-paper").evaluate((element) => element.offsetWidth);
     expect(width).toBe(794);
-  });
-});
-
-test.describe("review tools", () => {
-  test("flags a weak bullet and reports keyword gaps", async ({ page }) => {
-    await openEditor(page);
-    await page.getByRole("button", { name: "Review", exact: true }).click();
-
-    // The example resume should produce some coaching output.
-    await expect(page.locator(".coach-summary")).toBeVisible();
-
-    await page
-      .getByPlaceholder(/paste the full job posting/i)
-      .fill(
-        "We are hiring a Kubernetes platform engineer. Kubernetes experience required. " +
-          "Strong Terraform and Terraform automation skills. Kubernetes and Terraform daily.",
-      );
-    await expect(page.locator(".match-score")).toBeVisible();
-    await expect(page.locator(".keyword.missing").first()).toBeVisible();
   });
 });
 

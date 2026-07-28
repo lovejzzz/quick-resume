@@ -9,6 +9,7 @@
  * than hand-written in `public/sw.js`.
  */
 import { readdir, readFile, stat, writeFile } from "node:fs/promises";
+import { createHash } from "node:crypto";
 import { join, posix, relative, sep } from "node:path";
 
 const OUT_DIR = "out";
@@ -61,9 +62,17 @@ const manifest = all
 
 const swPath = join(OUT_DIR, "sw.js");
 const source = await readFile(swPath, "utf8");
-if (!source.includes("__PRECACHE_MANIFEST__")) {
-  throw new Error("sw.js is missing the __PRECACHE_MANIFEST__ placeholder.");
+if (!source.includes("__PRECACHE_MANIFEST__") || !source.includes("__CACHE_VERSION__")) {
+  throw new Error("sw.js is missing a build-time placeholder.");
 }
+
+const cacheHash = createHash("sha256");
+for (const path of [...manifest].sort()) {
+  const local = path === `${BASE_PATH}/` ? "index.html" : path.slice(BASE_PATH.length + 1);
+  cacheHash.update(path);
+  cacheHash.update(await readFile(join(OUT_DIR, local)));
+}
+const cacheVersion = cacheHash.digest("hex").slice(0, 12);
 
 const bytes = (
   await Promise.all(
@@ -78,7 +87,10 @@ await writeFile(
   swPath,
   source
     .replace("__PRECACHE_MANIFEST__", JSON.stringify(manifest))
+    .replace("__CACHE_VERSION__", cacheVersion)
     .replace("__SHELL_URL__", JSON.stringify(`${BASE_PATH}/`)),
 );
 
-console.log(`sw.js: precaching ${manifest.length} files (${(bytes / 1024).toFixed(0)} KB)`);
+console.log(
+  `sw.js: precaching ${manifest.length} files (${(bytes / 1024).toFixed(0)} KB), cache ${cacheVersion}`,
+);

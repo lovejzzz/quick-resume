@@ -16,7 +16,6 @@ export const releases: Release[] = [
     notes: [
       "Keep several tailored resumes and switch between them",
       "Import an existing PDF or text resume as a first draft",
-      "Job-description keyword matching and bullet-strength review",
       "A4 alongside US Letter, with matching one-page fitting",
       "Back up and restore everything as a JSON file",
       "Offline editing, and a far smaller first load",

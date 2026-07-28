@@ -128,7 +128,9 @@ export function coerceResumeStyle(value: unknown): ResumeStyle {
   return {
     // Reject anything that is not a plain hex colour; the value is written
     // straight into a CSS custom property.
-    accent: /^#[0-9a-f]{3,8}$/i.test(accent) ? accent : defaultStyle.accent,
+    accent: /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(accent)
+      ? accent
+      : defaultStyle.accent,
     font: (["modern", "classic", "humanist"] as const).includes(
       raw.font as ResumeStyle["font"],
     )

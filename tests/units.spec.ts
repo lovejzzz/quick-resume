@@ -1,26 +1,10 @@
 import { expect, test } from "@playwright/test";
-import { analyseJobMatch } from "../app/lib/ats";
-import { summariseReview } from "../app/lib/coach";
 import { judgeAccent } from "../app/lib/contrast";
-import { parseResumeLines } from "../app/lib/import-resume";
+import { getOcrPagePlan, parseResumeLines } from "../app/lib/import-resume";
 import { getPageGeometry } from "../app/lib/page-size";
-import type { ResumeData } from "../app/lib/resume-model";
 import { coerceResumeStyle, migrateWorkspace, parseBackup } from "../app/lib/storage";
 
-/** Pure-function coverage for the logic behind the new panels. */
-
-const resume = (overrides: Partial<ResumeData> = {}): ResumeData => ({
-  name: "Test Person",
-  headline: "Engineer",
-  email: "a@b.co",
-  phone: "",
-  location: "",
-  portfolio: "",
-  secondaryLink: "",
-  photo: "",
-  sections: [],
-  ...overrides,
-});
+/** Pure-function coverage for storage, layout, import, and contrast logic. */
 
 test.describe("storage migration", () => {
   test("turns a v1 payload into a single document", () => {
@@ -55,6 +39,9 @@ test.describe("storage migration", () => {
   test("rejects a non-hex accent so it cannot reach a CSS variable", () => {
     expect(coerceResumeStyle({ accent: "red; background: url(x)" }).accent).toBe("#28605d");
     expect(coerceResumeStyle({ accent: "#ABC" }).accent).toBe("#ABC");
+    for (const invalid of ["#12345", "#1234567", "#0000", "#00000000"]) {
+      expect(coerceResumeStyle({ accent: invalid }).accent).toBe("#28605d");
+    }
   });
 
   test("clamps out-of-range numbers", () => {
@@ -96,93 +83,21 @@ test.describe("page geometry", () => {
   });
 });
 
-test.describe("keyword matching", () => {
-  const data = resume({
-    sections: [
-      {
-        id: "s1",
-        kind: "experience",
-        title: "Experience",
-        entries: [
-          {
-            id: "e1",
-            heading: "Engineer",
-            subheading: "Acme",
-            date: "2020",
-            details: "",
-            bullets: ["Built Kubernetes clusters for 40 services"],
-          },
-        ],
-      },
-    ],
-  });
-
-  test("separates present from absent terms", () => {
-    const report = analyseJobMatch(
-      "Kubernetes engineer wanted. Kubernetes required. Terraform required. Terraform expertise essential.",
-      data,
-    );
-    const missing = report.missing.map((hit) => hit.term);
-    const matched = report.matched.map((hit) => hit.term);
-    expect(matched.some((term) => term.includes("kubernetes"))).toBe(true);
-    expect(missing.some((term) => term.includes("terraform"))).toBe(true);
-    expect(report.score).toBeGreaterThan(0);
-    expect(report.score).toBeLessThanOrEqual(100);
-  });
-
-  test("matches across singular and plural forms", () => {
-    const report = analyseJobMatch("We need cluster experience. Clusters clusters clusters.", data);
-    expect(report.matched.some((hit) => hit.term.startsWith("cluster"))).toBe(true);
-  });
-
-  test("returns an empty report for stop-word-only text", () => {
-    expect(analyseJobMatch("the and of to a an", data).totalTerms).toBe(0);
-  });
-});
-
-test.describe("bullet coaching", () => {
-  const withBullet = (bullet: string) =>
-    summariseReview(
-      resume({
-        sections: [
-          {
-            id: "s",
-            kind: "experience",
-            title: "Experience",
-            entries: [
-              { id: "e", heading: "Role", subheading: "", date: "", details: "", bullets: [bullet] },
-            ],
-          },
-        ],
-      }),
-    );
-
-  test("flags a weak opener", () => {
-    const rules = withBullet("Responsible for managing the team roadmap").findings.map((f) => f.rule);
-    expect(rules).toContain("weak-opener");
-  });
-
-  test("flags first-person phrasing", () => {
-    expect(withBullet("I led the migration of 12 services").findings.map((f) => f.rule)).toContain(
-      "first-person",
-    );
-  });
-
-  test("does not ask for a metric when one is present", () => {
-    const rules = withBullet("Shipped 14 releases, cutting latency 38%").findings.map((f) => f.rule);
-    expect(rules).not.toContain("no-metric");
-  });
-
-  test("asks for a metric when none is present", () => {
-    expect(withBullet("Shipped releases and improved latency").findings.map((f) => f.rule)).toContain(
-      "no-metric",
-    );
-  });
-
-  test("counts bullets carrying numbers", () => {
-    const summary = withBullet("Reduced build time by 45%");
-    expect(summary.bulletsChecked).toBe(1);
-    expect(summary.bulletsWithMetrics).toBe(1);
+test.describe("OCR limits", () => {
+  test("makes long-document truncation explicit", () => {
+    expect(getOcrPagePlan(4)).toEqual({
+      pagesToRead: 4,
+      totalPages: 4,
+      truncated: false,
+      warning: "",
+    });
+    expect(getOcrPagePlan(9)).toEqual({
+      pagesToRead: 6,
+      totalPages: 9,
+      truncated: true,
+      warning:
+        "Only the first 6 of 9 pages were read. Import the remaining pages separately.",
+    });
   });
 });
 
@@ -194,6 +109,7 @@ test.describe("accent contrast", () => {
 
   test("returns null for a value that is not a colour", () => {
     expect(judgeAccent("not-a-colour")).toBeNull();
+    expect(judgeAccent("#00000000")).toBeNull();
   });
 });
 

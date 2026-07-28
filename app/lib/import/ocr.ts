@@ -31,10 +31,37 @@ export type OcrResult = {
   confidence: number;
   /** Words Tesseract was unsure of, lower-cased, for flagging risky fields. */
   uncertain: Set<string>;
+  pagesProcessed: number;
+  totalPages: number;
 };
 
 /** Below this, Tesseract is guessing. */
 const LOW_CONFIDENCE = 75;
+export const OCR_PAGE_LIMIT = 6;
+
+export type OcrPagePlan = {
+  pagesToRead: number;
+  totalPages: number;
+  truncated: boolean;
+  warning: string;
+};
+
+/** Keeps the UI and worker on the same explicit long-document limit. */
+export function getOcrPagePlan(
+  totalPages: number,
+  maxPages = OCR_PAGE_LIMIT,
+): OcrPagePlan {
+  const pagesToRead = Math.min(totalPages, Math.max(0, maxPages));
+  const truncated = pagesToRead < totalPages;
+  return {
+    pagesToRead,
+    totalPages,
+    truncated,
+    warning: truncated
+      ? `Only the first ${pagesToRead} of ${totalPages} pages were read. Import the remaining pages separately.`
+      : "",
+  };
+}
 
 /**
  * Pages are rendered at roughly 200 dpi. Tesseract is trained around that, and
@@ -114,7 +141,7 @@ export type OcrOptions = {
 
 export async function ocrPdf(data: ArrayBuffer, options: OcrOptions = {}): Promise<OcrResult> {
   const { onProgress, signal } = options;
-  const maxPages = options.maxPages ?? 6;
+  const maxPages = options.maxPages ?? OCR_PAGE_LIMIT;
 
   const throwIfAborted = () => {
     if (signal?.aborted) throw new DOMException("Cancelled", "AbortError");
@@ -134,14 +161,45 @@ export async function ocrPdf(data: ArrayBuffer, options: OcrOptions = {}): Promi
     gzip: true,
   });
 
-  const document = await pdfjs.getDocument({ data: data.slice(0) }).promise;
-  const pageCount = Math.min(document.numPages, maxPages);
+  let termination: Promise<unknown> | null = null;
+  const terminateWorker = () => {
+    termination ??= worker.terminate().catch(() => undefined);
+    return termination;
+  };
+  const abortWorker = () => {
+    void terminateWorker();
+  };
+  signal?.addEventListener("abort", abortWorker, { once: true });
+
+  const raceWithAbort = <T>(promise: Promise<T>): Promise<T> => {
+    if (!signal) return promise;
+    if (signal.aborted) {
+      return Promise.reject(new DOMException("Cancelled", "AbortError"));
+    }
+    return new Promise<T>((resolve, reject) => {
+      const rejectOnAbort = () => reject(new DOMException("Cancelled", "AbortError"));
+      signal.addEventListener("abort", rejectOnAbort, { once: true });
+      promise.then(resolve, reject).finally(() => {
+        signal.removeEventListener("abort", rejectOnAbort);
+      });
+    });
+  };
+
+  let document: Awaited<ReturnType<typeof pdfjs.getDocument>["promise"]> | null = null;
   const lines: TextLine[] = [];
   const uncertain = new Set<string>();
   let confidenceSum = 0;
   let wordCount = 0;
+  let pageCount = 0;
+  let totalPages = 0;
 
   try {
+    throwIfAborted();
+    document = await pdfjs.getDocument({ data: data.slice(0) }).promise;
+    throwIfAborted();
+    totalPages = document.numPages;
+    pageCount = getOcrPagePlan(totalPages, maxPages).pagesToRead;
+
     for (let pageNumber = 1; pageNumber <= pageCount; pageNumber += 1) {
       throwIfAborted();
       onProgress?.({
@@ -162,7 +220,10 @@ export async function ocrPdf(data: ArrayBuffer, options: OcrOptions = {}): Promi
         pages: pageCount,
       });
 
-      const { data: recognised } = await worker.recognize(canvas, {}, { blocks: true });
+      const { data: recognised } = await raceWithAbort(
+        worker.recognize(canvas, {}, { blocks: true }),
+      );
+      throwIfAborted();
       // Release the bitmap promptly; a 200 dpi Letter page is ~20 MB.
       canvas.width = 0;
       canvas.height = 0;
@@ -185,9 +246,17 @@ export async function ocrPdf(data: ArrayBuffer, options: OcrOptions = {}): Promi
         }
       }
     }
+  } catch (error) {
+    if (signal?.aborted) throw new DOMException("Cancelled", "AbortError");
+    throw error;
   } finally {
-    await worker.terminate().catch(() => undefined);
-    await document.destroy().catch(() => undefined);
+    signal?.removeEventListener("abort", abortWorker);
+    // Tesseract does not settle an in-flight recognition promise when
+    // terminate() is called. Cancellation must return immediately; cleanup can
+    // finish in the background once the worker responds.
+    if (signal?.aborted) void terminateWorker();
+    else await terminateWorker();
+    await document?.destroy().catch(() => undefined);
   }
 
   onProgress?.({ phase: "recognising", ratio: 1, page: pageCount, pages: pageCount });
@@ -196,6 +265,8 @@ export async function ocrPdf(data: ArrayBuffer, options: OcrOptions = {}): Promi
     lines,
     confidence: wordCount ? confidenceSum / wordCount : 0,
     uncertain,
+    pagesProcessed: pageCount,
+    totalPages,
   };
 }
 

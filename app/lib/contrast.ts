@@ -9,7 +9,6 @@ function expandHex(hex: string): string | null {
       .join("");
   }
   if (/^[0-9a-f]{6}$/i.test(value)) return value;
-  if (/^[0-9a-f]{8}$/i.test(value)) return value.slice(0, 6);
   return null;
 }
 

@@ -11,10 +11,8 @@ import {
 } from "react";
 import { ConfirmationDialog, type ConfirmationRequest } from "./components/ConfirmationDialog";
 import { ContentPanel } from "./components/ContentPanel";
-import { DocumentSwitcher } from "./components/DocumentSwitcher";
 import { ExportPanel, type ExportFormat } from "./components/ExportPanel";
 import { ResumePaper, type ActiveText } from "./components/ResumePaper";
-import { ReviewPanel } from "./components/ReviewPanel";
 import { StylePanel } from "./components/StylePanel";
 import { VersionWidget } from "./components/VersionWidget";
 import { useWorkspace } from "./hooks/useWorkspace";
@@ -37,9 +35,9 @@ type PhotoDragSession = {
   y: number;
 };
 
-type Tab = "content" | "style" | "review" | "export";
+type Tab = "content" | "style" | "export";
 
-const TABS: Tab[] = ["content", "style", "review", "export"];
+const TABS: Tab[] = ["content", "style", "export"];
 
 export default function Home() {
   const workspace = useWorkspace();
@@ -166,51 +164,61 @@ export default function Home() {
       paper.querySelectorAll<HTMLElement>("[data-photo-flow]").forEach((target) => {
         previousSides.set(target, target.getAttribute("data-photo-side"));
       });
-      clearPhotoFlow();
+      // On drop, text transitions are enabled again. Clearing the old margins
+      // while they can animate makes getBoundingClientRect() observe an
+      // in-between position and produces an almost-zero replacement margin.
+      // Disable transitions for this synchronous clear/measure/apply pass so
+      // the geometry is always based on the unwrapped document.
+      paper.classList.add("photo-flow-measuring");
+      try {
+        clearPhotoFlow();
 
-      const paperBox = paper.getBoundingClientRect();
-      const scale = paper.offsetWidth / paperBox.width || 1;
-      const photoRight = x + PHOTO_SIZE;
-      const photoBottom = y + PHOTO_SIZE;
+        const paperBox = paper.getBoundingClientRect();
+        const scale = paper.offsetWidth / paperBox.width || 1;
+        const photoRight = x + PHOTO_SIZE;
+        const photoBottom = y + PHOTO_SIZE;
 
-      for (const target of Array.from(paper.querySelectorAll<HTMLElement>("[data-photo-flow]"))) {
-        const box = target.getBoundingClientRect();
-        const left = (box.left - paperBox.left) * scale;
-        const right = (box.right - paperBox.left) * scale;
-        const top = (box.top - paperBox.top) * scale;
-        const bottom = (box.bottom - paperBox.top) * scale;
-        if (!(photoBottom + PHOTO_GAP > top && y - PHOTO_GAP < bottom)) continue;
-        if (!(photoRight + PHOTO_GAP > left && x - PHOTO_GAP < right)) continue;
+        for (const target of Array.from(paper.querySelectorAll<HTMLElement>("[data-photo-flow]"))) {
+          const box = target.getBoundingClientRect();
+          const left = (box.left - paperBox.left) * scale;
+          const right = (box.right - paperBox.left) * scale;
+          const top = (box.top - paperBox.top) * scale;
+          const bottom = (box.bottom - paperBox.top) * scale;
+          if (!(photoBottom + PHOTO_GAP > top && y - PHOTO_GAP < bottom)) continue;
+          if (!(photoRight + PHOTO_GAP > left && x - PHOTO_GAP < right)) continue;
 
-        const availableLeft = Math.max(0, x - PHOTO_GAP - left);
-        const availableRight = Math.max(0, right - photoRight - PHOTO_GAP);
-        const minimumReadableWidth = Math.min(190, (right - left) * 0.44);
-        const previousSide = previousSides.get(target);
-        const sideSwitchThreshold = 96;
-        let useRight = availableRight >= availableLeft;
-        if (
-          previousSide === "right" &&
-          availableRight >= minimumReadableWidth &&
-          availableLeft - availableRight < sideSwitchThreshold
-        ) {
-          useRight = true;
-        } else if (
-          previousSide === "left" &&
-          availableLeft >= minimumReadableWidth &&
-          availableRight - availableLeft < sideSwitchThreshold
-        ) {
-          useRight = false;
+          const availableLeft = Math.max(0, x - PHOTO_GAP - left);
+          const availableRight = Math.max(0, right - photoRight - PHOTO_GAP);
+          const minimumReadableWidth = Math.min(190, (right - left) * 0.44);
+          const previousSide = previousSides.get(target);
+          const sideSwitchThreshold = 96;
+          let useRight = availableRight >= availableLeft;
+          if (
+            previousSide === "right" &&
+            availableRight >= minimumReadableWidth &&
+            availableLeft - availableRight < sideSwitchThreshold
+          ) {
+            useRight = true;
+          } else if (
+            previousSide === "left" &&
+            availableLeft >= minimumReadableWidth &&
+            availableRight - availableLeft < sideSwitchThreshold
+          ) {
+            useRight = false;
+          }
+          if ((useRight ? availableRight : availableLeft) < minimumReadableWidth) continue;
+
+          if (useRight) {
+            target.style.setProperty("--photo-flow-left", `${Math.max(0, photoRight + PHOTO_GAP - left)}px`);
+            target.setAttribute("data-photo-side", "right");
+          } else {
+            target.style.setProperty("--photo-flow-right", `${Math.max(0, right - x + PHOTO_GAP)}px`);
+            target.setAttribute("data-photo-side", "left");
+          }
+          target.setAttribute("data-photo-obstructed", "true");
         }
-        if ((useRight ? availableRight : availableLeft) < minimumReadableWidth) continue;
-
-        if (useRight) {
-          target.style.setProperty("--photo-flow-left", `${Math.max(0, photoRight + PHOTO_GAP - left)}px`);
-          target.setAttribute("data-photo-side", "right");
-        } else {
-          target.style.setProperty("--photo-flow-right", `${Math.max(0, right - x + PHOTO_GAP)}px`);
-          target.setAttribute("data-photo-side", "left");
-        }
-        target.setAttribute("data-photo-obstructed", "true");
+      } finally {
+        paper.classList.remove("photo-flow-measuring");
       }
     },
     [clearPhotoFlow, data.photo, style.showPhoto],
@@ -717,18 +725,6 @@ export default function Home() {
       tone: "danger",
     });
 
-  const confirmDelete = (id: string) => {
-    const target = workspace.documents.find((document) => document.id === id);
-    setConfirmation({
-      confirmLabel: "Delete resume",
-      eyebrow: "Delete",
-      message: `“${target?.title || "Untitled resume"}” will be removed from this browser. Save afterwards to make it permanent.`,
-      onConfirm: () => workspace.deleteDocument(id),
-      title: "Delete this resume?",
-      tone: "danger",
-    });
-  };
-
   const saveLabel = workspace.saveError
     ? "Try save again"
     : workspace.hasUnsavedChanges
@@ -738,7 +734,6 @@ export default function Home() {
   const tabLabels: Record<Tab, string> = {
     content: "Content",
     style: "Style",
-    review: "Review",
     export: "Export",
   };
 
@@ -764,19 +759,6 @@ export default function Home() {
             </div>
           </div>
         </div>
-
-        {activeDocument && (
-          <DocumentSwitcher
-            activeId={activeDocument.id}
-            documents={workspace.documents}
-            onCreateBlank={workspace.createBlank}
-            onCreateFromExample={workspace.createFromExample}
-            onDelete={confirmDelete}
-            onDuplicate={workspace.duplicateActive}
-            onRename={workspace.renameActive}
-            onSelect={workspace.selectDocument}
-          />
-        )}
 
         <div className="header-actions">
           <div aria-label="Editing history" className="history-actions" role="group">
@@ -876,8 +858,6 @@ export default function Home() {
                 style={style}
               />
             )}
-
-            {activeTab === "review" && <ReviewPanel data={data} />}
 
             {activeTab === "export" && (
               <ExportPanel

@@ -2,7 +2,12 @@ import type { ResumeData } from "../resume-model";
 import { extractDocxLines } from "./docx";
 import { explain, isRecoverableByOcr, type PdfHealth } from "./diagnose";
 import { extractPdf, linesFromText, type TextLine } from "./extract";
-import { ocrPdf, riskyFieldWarnings, type OcrOptions } from "./ocr";
+import {
+  getOcrPagePlan,
+  ocrPdf,
+  riskyFieldWarnings,
+  type OcrOptions,
+} from "./ocr";
 import { parseLines } from "./parse";
 
 /**
@@ -115,6 +120,7 @@ export async function importResumeFile(file: File): Promise<ImportResult> {
 
 export { parseLines } from "./parse";
 export { linesFromText } from "./extract";
+export { getOcrPagePlan, OCR_PAGE_LIMIT } from "./ocr";
 
 
 /**
@@ -132,12 +138,17 @@ export async function importByOcr(retry: OcrRetry, options: OcrOptions = {}): Pr
     }
 
     const { data, warnings, summary } = parseLines(result.lines);
+    const pagePlan = getOcrPagePlan(result.totalPages, result.pagesProcessed);
     return {
       ok: true,
       data,
       viaOcr: true,
       summary,
-      warnings: [...riskyFieldWarnings(data, result), ...warnings],
+      warnings: [
+        ...(pagePlan.warning ? [pagePlan.warning] : []),
+        ...riskyFieldWarnings(data, result),
+        ...warnings,
+      ],
     };
   } catch (error) {
     if (error instanceof DOMException && error.name === "AbortError") {

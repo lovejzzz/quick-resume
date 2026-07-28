@@ -3,9 +3,11 @@
  * split by stage: extraction, layout analysis, heading detection, parsing.
  */
 export {
+  getOcrPagePlan,
   importByOcr,
   importResumeFile,
   linesFromText,
+  OCR_PAGE_LIMIT,
   parseLines,
   type ImportResult,
   type OcrRetry,

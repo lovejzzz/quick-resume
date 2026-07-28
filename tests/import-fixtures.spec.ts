@@ -252,6 +252,9 @@ test.describe("text recognition", () => {
 
     const progress = page.locator(".ocr-progress");
     await expect(progress).toBeVisible({ timeout: 20_000 });
+    // Cancelling while Tesseract is actively reading must interrupt the job,
+    // not merely set a flag that a one-page import never checks again.
+    await expect(progress).toContainText(/Reading page 1 of 1/i, { timeout: 30_000 });
     await progress.getByRole("button", { name: "Cancel" }).click();
     await expect(page.locator(".import-message.error")).toContainText(/cancelled/i, {
       timeout: 60_000,
