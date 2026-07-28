@@ -179,11 +179,15 @@ test("adds a tab icon, U.S. college autocomplete, and freeform obstacle-aware ph
   assert.match(page, /const startPhotoDrag = \(event: ReactPointerEvent<HTMLButtonElement>\)/);
   assert.match(page, /setPointerCapture\(event\.pointerId\)/);
   assert.match(page, /onPointerMove=\{movePhotoPointer\}/);
+  assert.match(page, /onLostPointerCapture=\{finishPhotoDrag\}/);
   assert.match(page, /data-photo-flow=""/);
   assert.match(page, /movePhotoWithKeyboard/);
+  assert.match(page, /sideSwitchThreshold = 96/);
+  assert.match(page, /classList\.add\("export-clean"\)/);
   assert.match(styles, /\.resume-photo/);
   assert.match(styles, /\[data-photo-flow\]/);
   assert.match(styles, /\.photo-is-dragging \[data-photo-flow\]/);
+  assert.match(styles, /\.resume-paper\.export-clean \.photo-move-glyph/);
 });
 
 test("adds content navigation, fluid sortable sections, and thirty ranked fonts", async () => {

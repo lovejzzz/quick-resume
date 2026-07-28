@@ -530,6 +530,10 @@ export default function Home() {
 
     photo.style.left = `${x}px`;
     photo.style.top = `${y}px`;
+    const previousSides = new Map<HTMLElement, string | null>();
+    paper.querySelectorAll<HTMLElement>("[data-photo-flow]").forEach((target) => {
+      previousSides.set(target, target.getAttribute("data-photo-side"));
+    });
     clearPhotoFlow();
 
     const paperBox = paper.getBoundingClientRect();
@@ -551,7 +555,22 @@ export default function Home() {
       const availableLeft = Math.max(0, x - PHOTO_GAP - left);
       const availableRight = Math.max(0, right - photoRight - PHOTO_GAP);
       const minimumReadableWidth = Math.min(190, (right - left) * 0.44);
-      const useRight = availableRight >= availableLeft;
+      const previousSide = previousSides.get(target);
+      const sideSwitchThreshold = 96;
+      let useRight = availableRight >= availableLeft;
+      if (
+        previousSide === "right" &&
+        availableRight >= minimumReadableWidth &&
+        availableLeft - availableRight < sideSwitchThreshold
+      ) {
+        useRight = true;
+      } else if (
+        previousSide === "left" &&
+        availableLeft >= minimumReadableWidth &&
+        availableRight - availableLeft < sideSwitchThreshold
+      ) {
+        useRight = false;
+      }
       const available = useRight ? availableRight : availableLeft;
       if (available < minimumReadableWidth) continue;
 
@@ -1029,11 +1048,17 @@ export default function Home() {
     if (!resumeRef.current) return;
     setExporting(true);
     try {
+      if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+      setActiveText(null);
+      await waitForResumeLayout();
       const canvas = await html2canvas(resumeRef.current, {
         scale: exportScale,
         backgroundColor: "#ffffff",
         useCORS: true,
         logging: false,
+        onclone: (clonedDocument) => {
+          clonedDocument.querySelector(".resume-paper")?.classList.add("export-clean");
+        },
       });
       const mime = format === "png" ? "image/png" : "image/jpeg";
       const extension = format === "png" ? "png" : "jpg";
@@ -1630,13 +1655,13 @@ export default function Home() {
                     <fieldset className="photo-position-control">
                       <legend>Quick placement</legend>
                       <div className="segmented">
-                        {(["left", "top", "right"] as const).map((position) => (
+                        {(["left", "center", "right"] as const).map((position) => (
                           <button
                             key={position}
-                            onClick={() => placePhoto(position === "top" ? "center" : position)}
+                            onClick={() => placePhoto(position)}
                             type="button"
                           >
-                            {position === "top" ? "center" : position}
+                            {position}
                           </button>
                         ))}
                       </div>
@@ -1800,6 +1825,7 @@ export default function Home() {
                   aria-label={`Move ${data.name || "resume"} photo. Drag anywhere on the page, or use arrow keys for precise movement.`}
                   className="resume-photo"
                   onKeyDown={movePhotoWithKeyboard}
+                  onLostPointerCapture={finishPhotoDrag}
                   onPointerCancel={finishPhotoDrag}
                   onPointerDown={startPhotoDrag}
                   onPointerMove={movePhotoPointer}

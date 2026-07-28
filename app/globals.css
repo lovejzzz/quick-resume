@@ -2293,6 +2293,16 @@ button {
   transform: scale(1);
 }
 
+.resume-paper.export-clean .resume-photo {
+  outline: 0 !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+
+.resume-paper.export-clean .photo-move-glyph {
+  display: none !important;
+}
+
 [data-photo-flow] {
   min-width: 0;
   margin-left: var(--photo-flow-left, 0);
@@ -3123,6 +3133,16 @@ body {
     box-shadow: none;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
+  }
+
+  .resume-photo {
+    outline: 0 !important;
+    box-shadow: none !important;
+    transform: none !important;
+  }
+
+  .photo-move-glyph {
+    display: none !important;
   }
 
   .resume-section,
