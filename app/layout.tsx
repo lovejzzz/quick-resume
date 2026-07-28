@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Tian Xing · Resume Studio",
-  description: "Edit, reorganize, preview, and export a polished resume.",
+  title: "Quick Resume",
+  description: "A private, browser-based resume editor with smart one-page fitting and PDF, PNG, and JPG export.",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
