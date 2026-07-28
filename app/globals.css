@@ -294,6 +294,11 @@ button {
   cursor: grab;
   font-size: 16px;
   letter-spacing: -4px;
+  user-select: none;
+}
+
+.drag-handle:active {
+  cursor: grabbing;
 }
 
 .section-title-input {

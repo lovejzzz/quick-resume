@@ -353,9 +353,11 @@ export default function Home() {
   };
 
   const dropSection = (targetId: string) => {
-    if (!draggedSection || draggedSection === targetId) return;
+    const sourceId = draggedSection;
+    setDraggedSection(null);
+    if (!sourceId || sourceId === targetId) return;
     setData((current) => {
-      const from = current.sections.findIndex((section) => section.id === draggedSection);
+      const from = current.sections.findIndex((section) => section.id === sourceId);
       const to = current.sections.findIndex((section) => section.id === targetId);
       if (from < 0 || to < 0) return current;
       const sections = [...current.sections];
@@ -363,7 +365,6 @@ export default function Home() {
       sections.splice(to, 0, moved);
       return { ...current, sections };
     });
-    setDraggedSection(null);
   };
 
   const addSection = (kind: SectionKind) => {
@@ -546,14 +547,25 @@ export default function Home() {
                     {data.sections.map((section, sectionIndex) => (
                       <article
                         className={draggedSection === section.id ? "section-card dragging" : "section-card"}
-                        draggable
                         key={section.id}
-                        onDragStart={() => setDraggedSection(section.id)}
                         onDragOver={(event: DragEvent) => event.preventDefault()}
                         onDrop={() => dropSection(section.id)}
                       >
                         <div className="section-card-head">
-                          <span className="drag-handle" title="Drag to reorder" aria-hidden="true">⋮⋮</span>
+                          <span
+                            aria-label={`Drag ${section.title} to reorder`}
+                            className="drag-handle"
+                            draggable
+                            onDragEnd={() => setDraggedSection(null)}
+                            onDragStart={(event) => {
+                              event.dataTransfer.effectAllowed = "move";
+                              setDraggedSection(section.id);
+                            }}
+                            role="button"
+                            title="Drag to reorder"
+                          >
+                            ⋮⋮
+                          </span>
                           <input
                             aria-label="Section title"
                             className="section-title-input"
