@@ -533,6 +533,33 @@ export default function Home() {
     setStyle(initialStyle);
   };
 
+  const clearAllText = () => {
+    if (!window.confirm("Clear all resume text? Your sections, styling, and photo will stay in place.")) return;
+    setActiveText(null);
+    setData((current) => ({
+      ...current,
+      name: "",
+      headline: "",
+      email: "",
+      phone: "",
+      location: "",
+      portfolio: "",
+      secondaryLink: "",
+      sections: current.sections.map((section) => ({
+        ...section,
+        entries: section.entries.map((entry) => ({
+          ...entry,
+          heading: "",
+          subheading: "",
+          date: "",
+          details: "",
+          bullets: entry.bullets.map(() => ""),
+          ...(entry.link !== undefined ? { link: "" } : {}),
+        })),
+      })),
+    }));
+  };
+
   const waitForResumeLayout = () =>
     new Promise<void>((resolve) => {
       window.requestAnimationFrame(() => window.requestAnimationFrame(() => resolve()));
@@ -612,6 +639,14 @@ export default function Home() {
                       <p className="eyebrow">Header</p>
                       <h2>Personal details</h2>
                     </div>
+                    <button
+                      className="clear-all-button"
+                      onClick={clearAllText}
+                      title="Clear text while keeping sections and styling"
+                      type="button"
+                    >
+                      Clear all
+                    </button>
                   </div>
                   <div className="field-grid two">
                     <label className="field">
@@ -1295,7 +1330,7 @@ export default function Home() {
       </div>
 
       <details className="version-widget no-print">
-        <summary aria-label="Open the Quicky Resume version 0.2.0 changelog">v0.2.0</summary>
+        <summary aria-label="Open the Quicky Resume version 0.2.1 changelog">v0.2.1</summary>
         <aside className="changelog-card" aria-label="Quicky Resume changelog">
           <div className="changelog-heading">
             <div>
@@ -1304,6 +1339,16 @@ export default function Home() {
             </div>
             <span>Latest</span>
           </div>
+          <section className="changelog-release">
+            <div>
+              <strong>v0.2.1</strong>
+              <time dateTime="2026-07-28">Jul 28, 2026</time>
+            </div>
+            <ul>
+              <li>Clear all resume text while preserving sections</li>
+              <li>Revised Tian Xing starter resume</li>
+            </ul>
+          </section>
           <section className="changelog-release">
             <div>
               <strong>v0.2.0</strong>

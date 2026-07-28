@@ -51,7 +51,7 @@ export const tianXingExample: ResumeData = {
           heading: "Berklee College of Music",
           subheading: "Bachelor of Music, Jazz Composition",
           date: "2021-2024",
-          details: "Scholarship Recipient",
+          details: "Scholarship recipient",
           bullets: [],
         },
         {
@@ -73,7 +73,7 @@ export const tianXingExample: ResumeData = {
           id: "experience-1",
           heading: "Educational Technologist",
           subheading: "NYU Silver School",
-          date: "2026/02-05",
+          date: "2026/02-2026/05",
           details: "",
           bullets: [
             "Deliver instructional support and administer learning-management systems.",
@@ -116,7 +116,7 @@ export const tianXingExample: ResumeData = {
         },
         {
           id: "project-3",
-          heading: "Bebop Puzzle",
+          heading: "BebopPuzzle.com",
           subheading: "Web Game Designer & Developer",
           date: "",
           details: "A jazz ear training puzzle game.",

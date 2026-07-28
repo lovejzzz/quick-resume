@@ -32,7 +32,7 @@ test("server-renders Quicky Resume and its example case", async () => {
   assert.match(html, /<title>Quicky Resume<\/title>/i);
   assert.match(html, /Quicky Resume/);
   assert.match(html, /Built by Tian Xing/);
-  assert.match(html, /v0\.2\.0/);
+  assert.match(html, /v0\.2\.1/);
   assert.match(html, /Changelog/);
   assert.match(html, /Tian Xing/);
   assert.match(html, /Educational Technologist/);
@@ -52,9 +52,9 @@ test("keeps the example data and five layouts separate from the editor", async (
   assert.match(page, /const initialData: ResumeData = tianXingExample/);
   assert.match(example, /export const tianXingExample: ResumeData/);
   assert.match(example, /name: "Tian Xing"/);
-  assert.match(example, /date: "2026\/02-05"/);
+  assert.match(example, /date: "2026\/02-2026\/05"/);
   assert.match(example, /A website turn a syllabus into a full teachable course\./);
-  assert.match(example, /heading: "Bebop Puzzle"/);
+  assert.match(example, /heading: "BebopPuzzle\.com"/);
   assert.match(example, /A jazz ear training puzzle game\./);
   assert.match(example, /IPA International Photography Award 3rd place/);
   assert.doesNotMatch(example, /ECT Creative Excellence Award Recipient/);
@@ -64,7 +64,7 @@ test("keeps the example data and five layouts separate from the editor", async (
   assert.equal((themes.match(/id: "(classic|modern|executive|technical|academic)"/g) ?? []).length, 5);
   assert.match(page, /Research-backed layouts/);
   assert.match(packageJson, /"name": "quicky-resume"/);
-  assert.match(packageJson, /"version": "0\.2\.0"/);
+  assert.match(packageJson, /"version": "0\.2\.1"/);
 });
 
 test("uses an illustrated brand mark and keeps version history out of resume exports", async () => {
@@ -79,6 +79,17 @@ test("uses an illustrated brand mark and keeps version history out of resume exp
   assert.match(page, /className="version-widget no-print"/);
   assert.match(page, /Quicky Resume changelog/);
   assert.match(styles, /\.changelog-card/);
+});
+
+test("clear all removes editable text while preserving resume structure and presentation", async () => {
+  const page = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
+
+  assert.match(page, /const clearAllText = \(\) =>/);
+  assert.match(page, /Clear all resume text\? Your sections, styling, and photo will stay in place\./);
+  assert.match(page, /sections: current\.sections\.map/);
+  assert.match(page, /entries: section\.entries\.map/);
+  assert.match(page, /bullets: entry\.bullets\.map\(\(\) => ""\)/);
+  assert.match(page, /className="clear-all-button"/);
 });
 
 test("opens Style first and keeps fit and photo controls in their intended panels", async () => {

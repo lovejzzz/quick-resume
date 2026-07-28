@@ -397,6 +397,26 @@ button {
   letter-spacing: -0.025em;
 }
 
+.clear-all-button {
+  padding: 7px 10px;
+  border: 1px solid #d7dddb;
+  border-radius: 8px;
+  color: #81716f;
+  background: #f7f9f8;
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: 720;
+  transition: 140ms ease;
+}
+
+.clear-all-button:hover,
+.clear-all-button:focus-visible {
+  border-color: #cbb7b3;
+  color: #824c45;
+  background: #fbf4f2;
+  outline: none;
+}
+
 .helper {
   color: #8a9592;
   font-size: 11px;
