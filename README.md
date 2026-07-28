@@ -1,6 +1,6 @@
-# Quick Resume
+# Quicky Resume
 
-Quick Resume is a privacy-friendly resume editor that runs entirely in the
+Quicky Resume is a privacy-friendly resume editor that runs entirely in the
 browser. Edit the form or click directly into the live resume, reorganize
 sections, intelligently fit the document to one page, and export it as an
 ATS-friendly PDF, PNG, or JPG.
@@ -26,7 +26,7 @@ logic.
 
 ## Run locally
 
-Quick Resume requires Node.js `22.13.0` or newer.
+Quicky Resume requires Node.js `22.13.0` or newer.
 
 ```bash
 npm install
@@ -82,7 +82,7 @@ one-page height. It never removes content.
 
 ## Resume layouts
 
-Quick Resume includes five single-column layouts designed around common hiring
+Quicky Resume includes five single-column layouts designed around common hiring
 contexts:
 
 - **ATS Classic** for conservative, general-purpose applications

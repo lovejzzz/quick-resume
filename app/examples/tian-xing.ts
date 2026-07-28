@@ -1,7 +1,7 @@
 import type { ResumeData } from "../resume-model";
 
 /**
- * The example resume shown when Quick Resume is first opened.
+ * The example resume shown when Quicky Resume is first opened.
  *
  * Replace this object with another ResumeData object to ship a different
  * starter case. Once the app has opened, edits are saved locally in the

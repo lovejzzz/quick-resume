@@ -23,14 +23,14 @@ async function render() {
   );
 }
 
-test("server-renders Quick Resume and its example case", async () => {
+test("server-renders Quicky Resume and its example case", async () => {
   const response = await render();
   assert.equal(response.status, 200);
   assert.match(response.headers.get("content-type") ?? "", /^text\/html\b/i);
 
   const html = await response.text();
-  assert.match(html, /<title>Quick Resume<\/title>/i);
-  assert.match(html, /Quick Resume/);
+  assert.match(html, /<title>Quicky Resume<\/title>/i);
+  assert.match(html, /Quicky Resume/);
   assert.match(html, /Tian Xing/);
   assert.match(html, /Educational Technologist/);
   assert.doesNotMatch(html, /codex-preview/);
@@ -53,5 +53,5 @@ test("keeps the example data and five layouts separate from the editor", async (
   assert.match(model, /export type ResumeLayout/);
   assert.equal((themes.match(/id: "(classic|modern|executive|technical|academic)"/g) ?? []).length, 5);
   assert.match(page, /Research-backed layouts/);
-  assert.match(packageJson, /"name": "quick-resume"/);
+  assert.match(packageJson, /"name": "quicky-resume"/);
 });
