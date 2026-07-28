@@ -36,11 +36,12 @@ test("server-renders Quick Resume and its example case", async () => {
   assert.doesNotMatch(html, /codex-preview/);
 });
 
-test("keeps the example data separate from the editor", async () => {
-  const [page, example, model, packageJson] = await Promise.all([
+test("keeps the example data and five layouts separate from the editor", async () => {
+  const [page, example, model, themes, packageJson] = await Promise.all([
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/examples/tian-xing.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/resume-model.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/resume-themes.ts", import.meta.url), "utf8"),
     readFile(new URL("../package.json", import.meta.url), "utf8"),
   ]);
 
@@ -49,5 +50,8 @@ test("keeps the example data separate from the editor", async () => {
   assert.match(example, /export const tianXingExample: ResumeData/);
   assert.match(example, /name: "Tian Xing"/);
   assert.match(model, /export type ResumeData/);
+  assert.match(model, /export type ResumeLayout/);
+  assert.equal((themes.match(/id: "(classic|modern|executive|technical|academic)"/g) ?? []).length, 5);
+  assert.match(page, /Research-backed layouts/);
   assert.match(packageJson, /"name": "quick-resume"/);
 });

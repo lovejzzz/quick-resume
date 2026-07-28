@@ -13,7 +13,15 @@ import {
 import html2canvas from "html2canvas";
 import Image from "next/image";
 import { tianXingExample } from "./examples/tian-xing";
-import type { ResumeData, ResumeEntry, ResumeSection, ResumeStyle, SectionKind } from "./resume-model";
+import type {
+  ResumeData,
+  ResumeEntry,
+  ResumeLayout,
+  ResumeSection,
+  ResumeStyle,
+  SectionKind,
+} from "./resume-model";
+import { getResumeTheme, resumeThemes } from "./resume-themes";
 
 const makeId = () => `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 const PRINT_SAFE_HEIGHT = 1038;
@@ -26,6 +34,7 @@ const initialStyle: ResumeStyle = {
   density: "comfortable",
   fitLevel: 0,
   fontAdjustments: {},
+  layout: "modern",
   showPhoto: false,
 };
 
@@ -329,6 +338,30 @@ export default function Home() {
       }
       return { ...current, fontAdjustments };
     });
+  };
+
+  const applyResumeTheme = (layout: ResumeLayout) => {
+    const theme = getResumeTheme(layout);
+    setStyle((current) => ({
+      ...current,
+      accent: theme.accent,
+      density: theme.density,
+      font: theme.font,
+      layout: theme.id,
+    }));
+    setData((current) => {
+      const priority = new Map(theme.sectionPriority.map((kind, index) => [kind, index]));
+      const sections = current.sections
+        .map((section, index) => ({ section, index }))
+        .sort((left, right) => {
+          const leftPriority = priority.get(left.section.kind) ?? theme.sectionPriority.length;
+          const rightPriority = priority.get(right.section.kind) ?? theme.sectionPriority.length;
+          return leftPriority - rightPriority || left.index - right.index;
+        })
+        .map(({ section }) => section);
+      return { ...current, sections };
+    });
+    setActiveText(null);
   };
 
   const updateSection = (sectionId: string, patch: Partial<ResumeSection>) => {
@@ -722,12 +755,43 @@ export default function Home() {
                 <div className="panel-heading">
                   <div>
                     <p className="eyebrow">Presentation</p>
-                    <h2>Make it yours</h2>
+                    <h2>Choose your layout</h2>
                   </div>
                 </div>
 
                 <fieldset className="choice-group">
-                  <legend>Typeface</legend>
+                  <legend>Research-backed layouts</legend>
+                  <div className="theme-grid">
+                    {resumeThemes.map((theme) => (
+                      <button
+                        aria-pressed={style.layout === theme.id}
+                        className={style.layout === theme.id ? "theme-card selected" : "theme-card"}
+                        key={theme.id}
+                        onClick={() => applyResumeTheme(theme.id)}
+                        type="button"
+                      >
+                        <span aria-hidden="true" className={`theme-swatch theme-swatch-${theme.id}`}>
+                          <i />
+                          <i />
+                          <i />
+                        </span>
+                        <span className="theme-card-copy">
+                          <strong>{theme.label}</strong>
+                          <small>{theme.bestFor}</small>
+                          <span>{theme.description}</span>
+                        </span>
+                        <span aria-hidden="true" className="theme-check">✓</span>
+                      </button>
+                    ))}
+                  </div>
+                  <p className="theme-guidance">
+                    All five keep standard headings, readable type, and a single-column content flow.
+                    Choosing one also arranges sections around that job context; you can still reorder them.
+                  </p>
+                </fieldset>
+
+                <fieldset className="choice-group">
+                  <legend>Fine-tune typeface</legend>
                   <div className="choice-grid">
                     {([
                       ["modern", "Modern", "Clear and ATS-friendly"],
@@ -939,7 +1003,7 @@ export default function Home() {
 
           <div className="paper-wrap">
             <div
-              className={`resume-paper font-${style.font} density-${style.density}`}
+              className={`resume-paper layout-${style.layout} font-${style.font} density-${style.density}`}
               ref={resumeRef}
               style={{ "--resume-accent": style.accent, ...resumeFitVariables } as React.CSSProperties}
             >

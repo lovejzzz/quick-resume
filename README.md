@@ -18,7 +18,8 @@ logic.
 - Apply per-row font-size adjustments with `−`, `+`, and reset controls
 - Use smart one-page fitting that compresses spacing before typography
 - Upload an optional photo
-- Choose typography, spacing, and accent color
+- Choose from five research-backed layouts, then fine-tune typography, spacing,
+  and accent color
 - Export selectable-text PDF through the browser print dialog
 - Download high-resolution PNG and configurable-quality JPG
 - See approximate file size and page count before export
@@ -78,6 +79,30 @@ uses lower-impact adjustments:
 
 The automatic action finds the lightest setting that fits within a print-safe
 one-page height. It never removes content.
+
+## Resume layouts
+
+Quick Resume includes five single-column layouts designed around common hiring
+contexts:
+
+- **ATS Classic** for conservative, general-purpose applications
+- **Modern Professional** for business and nonprofit roles
+- **Executive** for leadership candidates
+- **Technical** for skills- and project-heavy applications
+- **Education & Research** for schools, universities, and research roles
+
+Selecting a layout changes visual hierarchy and places the most relevant
+sections first without deleting content. Users can continue to reorder sections
+afterward.
+
+The layouts deliberately avoid decorative columns, text boxes, and graphics.
+That decision follows current guidance from
+[UC Berkeley Career Engagement](https://www.career.berkeley.edu/prepare-for-success/resumes/),
+[Harvard MCS](https://careerservices.fas.harvard.edu/resources/create-a-strong-resume/),
+and
+[Penn Career Services](https://careerservices.upenn.edu/channels/resume/):
+keep formatting simple, skimmable, consistent, and compatible with PDF export
+and applicant tracking systems.
 
 ## Export behavior
 

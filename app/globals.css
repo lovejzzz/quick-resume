@@ -400,6 +400,179 @@ button {
   gap: 9px;
 }
 
+.theme-grid {
+  display: grid;
+  gap: 9px;
+}
+
+.theme-card {
+  position: relative;
+  width: 100%;
+  min-height: 108px;
+  padding: 12px 37px 12px 12px;
+  display: grid;
+  grid-template-columns: 65px 1fr;
+  align-items: center;
+  gap: 13px;
+  border: 1px solid #d9dfdd;
+  border-radius: 12px;
+  color: var(--ink);
+  background: #fff;
+  cursor: pointer;
+  text-align: left;
+  transition: border 140ms ease, box-shadow 140ms ease, transform 140ms ease;
+}
+
+.theme-card:hover {
+  border-color: #a8bbb7;
+  box-shadow: 0 6px 18px rgba(29, 40, 39, 0.07);
+  transform: translateY(-1px);
+}
+
+.theme-card.selected {
+  border-color: #5f918d;
+  background: #f2f8f6;
+  box-shadow: 0 0 0 2px rgba(79, 135, 131, 0.1);
+}
+
+.theme-card-copy {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.theme-card-copy strong {
+  font-size: 12px;
+}
+
+.theme-card-copy small {
+  color: #426e69;
+  font-size: 9px;
+  font-weight: 750;
+  letter-spacing: 0.045em;
+  text-transform: uppercase;
+}
+
+.theme-card-copy > span {
+  color: #788481;
+  font-size: 10px;
+  line-height: 1.35;
+}
+
+.theme-check {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 18px;
+  height: 18px;
+  display: none;
+  place-items: center;
+  border-radius: 50%;
+  color: #fff;
+  background: var(--accent);
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.theme-card.selected .theme-check {
+  display: grid;
+}
+
+.theme-swatch {
+  width: 65px;
+  height: 82px;
+  padding: 11px 8px;
+  display: grid;
+  align-content: start;
+  gap: 7px;
+  border: 1px solid #d9dfdd;
+  background: #fff;
+  box-shadow: 0 4px 10px rgba(29, 40, 39, 0.09);
+}
+
+.theme-swatch::before {
+  content: "";
+  width: 68%;
+  height: 5px;
+  background: #2c3634;
+}
+
+.theme-swatch::after {
+  content: "";
+  width: 100%;
+  height: 2px;
+  margin-top: 1px;
+  background: #28605d;
+}
+
+.theme-swatch i {
+  display: block;
+  width: 100%;
+  height: 3px;
+  background: #cdd5d3;
+}
+
+.theme-swatch i:nth-child(2) {
+  width: 82%;
+}
+
+.theme-swatch i:nth-child(3) {
+  width: 91%;
+}
+
+.theme-swatch-classic::after {
+  height: 1px;
+  background: #252a2e;
+}
+
+.theme-swatch-modern {
+  border-radius: 3px;
+}
+
+.theme-swatch-modern::after {
+  background: #28605d;
+}
+
+.theme-swatch-executive {
+  padding-top: 13px;
+  justify-items: center;
+}
+
+.theme-swatch-executive::before {
+  width: 72%;
+}
+
+.theme-swatch-executive::after {
+  height: 3px;
+  background: #243b5a;
+}
+
+.theme-swatch-technical {
+  gap: 5px;
+  border-top: 4px solid #24577a;
+}
+
+.theme-swatch-technical::after {
+  width: 36%;
+  height: 4px;
+  background: #24577a;
+}
+
+.theme-swatch-academic::before {
+  width: 85%;
+}
+
+.theme-swatch-academic::after {
+  background: #7a3045;
+}
+
+.theme-guidance {
+  margin: 10px 1px 0;
+  color: #77837f;
+  font-size: 9.5px;
+  line-height: 1.45;
+}
+
 .choice-card {
   position: relative;
   padding: 13px 14px 13px 40px;
@@ -805,6 +978,147 @@ button {
 
 .resume-paper.font-humanist {
   font-family: "Trebuchet MS", Arial, sans-serif;
+}
+
+.resume-paper.layout-classic {
+  --resume-accent: #20252b;
+}
+
+.resume-paper.layout-classic .resume-header {
+  border-bottom-width: 1px;
+}
+
+.resume-paper.layout-classic .resume-headline {
+  color: #333a40;
+  font-style: italic;
+  font-weight: 500;
+}
+
+.resume-paper.layout-classic .resume-section > h3 {
+  color: #20252b;
+  letter-spacing: 0.08em;
+}
+
+.resume-paper.layout-classic .resume-section > h3::after {
+  background: #7f858a;
+}
+
+.resume-paper.layout-modern .resume-header {
+  border-bottom-width: 3px;
+}
+
+.resume-paper.layout-executive .resume-header {
+  padding-left: 28px;
+  padding-right: 28px;
+  border-top: 1px solid var(--resume-accent);
+  border-bottom: 4px double var(--resume-accent);
+  text-align: center;
+}
+
+.resume-paper.layout-executive .resume-header.with-photo {
+  grid-template-columns: 82px 1fr 82px;
+}
+
+.resume-paper.layout-executive .resume-header.with-photo::before {
+  content: "";
+}
+
+.resume-paper.layout-executive .resume-header.with-photo img {
+  grid-column: 3;
+  grid-row: 1;
+}
+
+.resume-paper.layout-executive .resume-header.with-photo > div {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.resume-paper.layout-executive .contact-line {
+  justify-content: center;
+}
+
+.resume-paper.layout-executive .resume-headline {
+  color: #394a61;
+  font-weight: 600;
+  letter-spacing: 0.045em;
+  text-transform: uppercase;
+}
+
+.resume-paper.layout-executive .kind-summary {
+  padding: 10px 13px;
+  border-left: 3px solid var(--resume-accent);
+  background: #f4f6f8;
+}
+
+.resume-paper.layout-executive .resume-section > h3 {
+  color: #243b5a;
+  letter-spacing: 0.13em;
+}
+
+.resume-paper.layout-technical {
+  border-top: 7px solid var(--resume-accent);
+}
+
+.resume-paper.layout-technical .resume-header {
+  border-bottom-width: 1px;
+}
+
+.resume-paper.layout-technical .resume-header h2 {
+  letter-spacing: -0.025em;
+}
+
+.resume-paper.layout-technical .resume-headline {
+  margin-top: 6px;
+  margin-bottom: 8px;
+  font-family: var(--font-geist-mono), monospace;
+  font-weight: 650;
+}
+
+.resume-paper.layout-technical .resume-section > h3 {
+  padding-left: 9px;
+  border-left: 4px solid var(--resume-accent);
+  letter-spacing: 0.08em;
+}
+
+.resume-paper.layout-technical .resume-section > h3::after {
+  display: none;
+}
+
+.resume-paper.layout-technical .kind-skills {
+  padding: 10px 12px;
+  border: 1px solid #d7e0e7;
+  background: #f5f8fa;
+}
+
+.resume-paper.layout-academic .resume-header {
+  border-bottom-width: 1px;
+  border-bottom-color: #b59ba3;
+}
+
+.resume-paper.layout-academic .resume-header h2 {
+  letter-spacing: -0.025em;
+}
+
+.resume-paper.layout-academic .resume-headline {
+  color: #5c3440;
+  font-weight: 600;
+}
+
+.resume-paper.layout-academic .resume-section > h3 {
+  color: #642c3c;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: calc(var(--section-title-size, 11px) + 0.5px);
+  letter-spacing: 0.06em;
+  text-transform: none;
+}
+
+.resume-paper.layout-academic .resume-section > h3::after {
+  background: #c9b6bc;
+}
+
+.resume-paper.layout-academic .kind-education .resume-entry {
+  padding-left: 11px;
+  border-left: 2px solid #c9b6bc;
 }
 
 [data-inline-edit] {
