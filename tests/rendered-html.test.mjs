@@ -32,7 +32,7 @@ test("server-renders Quicky Resume and its example case", async () => {
   assert.match(html, /<title>Quicky Resume<\/title>/i);
   assert.match(html, /Quicky Resume/);
   assert.match(html, /Built by Tian Xing/);
-  assert.match(html, /v0\.2\.6/);
+  assert.match(html, /v0\.2\.7/);
   assert.match(html, /Changelog/);
   assert.match(html, /Tian Xing/);
   assert.match(html, /Educational Technologist/);
@@ -64,7 +64,7 @@ test("keeps the example data and five layouts separate from the editor", async (
   assert.equal((themes.match(/id: "(classic|modern|executive|technical|academic)"/g) ?? []).length, 5);
   assert.match(page, /Research-backed layouts/);
   assert.match(packageJson, /"name": "quicky-resume"/);
-  assert.match(packageJson, /"version": "0\.2\.6"/);
+  assert.match(packageJson, /"version": "0\.2\.7"/);
 });
 
 test("uses an illustrated brand mark and keeps version history out of resume exports", async () => {
@@ -152,11 +152,12 @@ test("opens Style first and keeps fit and photo controls in their intended panel
   assert.ok([...page.matchAll(/Smart one-page fit/g)].every((match) => (match.index ?? -1) > exportPanel));
   assert.match(page, /className="photo-upload-action"/);
   assert.match(page, /const removePhoto = \(\) =>/);
-  assert.match(page, /style\.showPhoto && data\.photo && \(\s*<img/);
+  assert.match(page, /style\.showPhoto && data\.photo && \(\s*<button/);
+  assert.match(page, /className="resume-photo"/);
   assert.doesNotMatch(page, /import Image from "next\/image"/);
 });
 
-test("adds a tab icon, U.S. college autocomplete, and reflowing photo positions", async () => {
+test("adds a tab icon, U.S. college autocomplete, and freeform obstacle-aware photo flow", async () => {
   const [page, model, styles, layout, collegesText] = await Promise.all([
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/resume-model.ts", import.meta.url), "utf8"),
@@ -172,15 +173,17 @@ test("adds a tab icon, U.S. college autocomplete, and reflowing photo positions"
   assert.match(page, /U\.S\. Department of Education · IPEDS/);
   assert.ok(colleges.length > 4_500);
   assert.ok(colleges.some((college) => college.name === "New York University"));
-  assert.match(model, /photoPosition: "left" \| "top" \| "right"/);
-  assert.match(page, /const dropPhoto = \(event: DragEvent<HTMLElement>\)/);
-  assert.match(page, /onDragStart=\{\(event\) =>/);
-  assert.match(page, /movePhoto\("left"\)/);
-  assert.match(page, /movePhoto\("top"\)/);
-  assert.match(page, /movePhoto\("right"\)/);
-  assert.match(styles, /\.resume-header\.photo-left/);
-  assert.match(styles, /\.resume-header\.photo-top/);
-  assert.match(styles, /\.resume-header\.photo-right/);
+  assert.match(model, /photoX: number/);
+  assert.match(model, /photoY: number/);
+  assert.match(page, /const applyPhotoFlow = useCallback\(\(x: number, y: number\)/);
+  assert.match(page, /const startPhotoDrag = \(event: ReactPointerEvent<HTMLButtonElement>\)/);
+  assert.match(page, /setPointerCapture\(event\.pointerId\)/);
+  assert.match(page, /onPointerMove=\{movePhotoPointer\}/);
+  assert.match(page, /data-photo-flow=""/);
+  assert.match(page, /movePhotoWithKeyboard/);
+  assert.match(styles, /\.resume-photo/);
+  assert.match(styles, /\[data-photo-flow\]/);
+  assert.match(styles, /\.photo-is-dragging \[data-photo-flow\]/);
 });
 
 test("adds content navigation, fluid sortable sections, and thirty ranked fonts", async () => {
@@ -206,4 +209,17 @@ test("adds content navigation, fluid sortable sections, and thirty ranked fonts"
   assert.match(fonts, /id: "helvetica"/);
   assert.match(model, /resumeFont: ResumeFontId/);
   assert.match(page, /--resume-font-family/);
+});
+
+test("uses Editorial Glass and Swiss Kinetic visual language", async () => {
+  const styles = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
+
+  assert.match(styles, /--signal: #f05a36/);
+  assert.match(styles, /Editorial Glass \+ Swiss Kinetic/);
+  assert.match(styles, /\.studio-shell::before/);
+  assert.match(styles, /backdrop-filter: blur\(28px\) saturate\(135%\)/);
+  assert.match(styles, /\.tab:nth-child\(1\)::before/);
+  assert.match(styles, /\.tab\.active::after/);
+  assert.match(styles, /\.section-drag-overlay/);
+  assert.match(styles, /@media \(prefers-reduced-motion: reduce\)/);
 });

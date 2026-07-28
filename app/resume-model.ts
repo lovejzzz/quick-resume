@@ -52,7 +52,8 @@ export type ResumeStyle = {
   fitLevel: number;
   fontAdjustments: Record<string, number>;
   layout: ResumeLayout;
-  photoPosition: "left" | "top" | "right";
+  photoX: number;
+  photoY: number;
   resumeFont: ResumeFontId;
   showPhoto: boolean;
 };

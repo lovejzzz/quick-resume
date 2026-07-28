@@ -1,11 +1,15 @@
 "use client";
 
+/* User-supplied data URLs cannot use Next Image's static optimization pipeline. */
+/* eslint-disable @next/next/no-img-element */
+
 import {
   ChangeEvent,
-  DragEvent,
   ElementType,
   KeyboardEvent as ReactKeyboardEvent,
+  PointerEvent as ReactPointerEvent,
   ReactNode,
+  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -45,6 +49,8 @@ import { getResumeTheme, resumeThemes } from "./resume-themes";
 
 const makeId = () => `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 const PRINT_SAFE_HEIGHT = 1038;
+const PHOTO_SIZE = 82;
+const PHOTO_GAP = 14;
 
 const initialData: ResumeData = tianXingExample;
 
@@ -55,7 +61,8 @@ const initialStyle: ResumeStyle = {
   fitLevel: 0,
   fontAdjustments: {},
   layout: "modern",
-  photoPosition: "right",
+  photoX: 664,
+  photoY: 66,
   resumeFont: "calibri",
   showPhoto: false,
 };
@@ -115,8 +122,23 @@ type InlineEditProps = {
   multiline?: boolean;
   onActivate: (editId: string, label: string, top: number) => void;
   onCommit: (value: string) => void;
+  photoFlow?: boolean;
   placeholder?: string;
   value: string;
+};
+
+type PhotoDragSession = {
+  frame: number | null;
+  paperHeight: number;
+  paperWidth: number;
+  pointerId: number;
+  scale: number;
+  startClientX: number;
+  startClientY: number;
+  startX: number;
+  startY: number;
+  x: number;
+  y: number;
 };
 
 type ConfirmationRequest = {
@@ -367,6 +389,7 @@ function InlineEdit({
   multiline = false,
   onActivate,
   onCommit,
+  photoFlow = false,
   placeholder = "",
   value,
 }: InlineEditProps) {
@@ -414,6 +437,7 @@ function InlineEdit({
       className={className}
       contentEditable
       data-inline-edit=""
+      data-photo-flow={photoFlow ? "" : undefined}
       data-placeholder={placeholder}
       onBlur={finishEdit}
       onFocus={(event: React.FocusEvent<HTMLElement>) => {
@@ -461,6 +485,8 @@ export default function Home() {
   const fontMenuRef = useRef<HTMLDetailsElement>(null);
   const confirmationDialogRef = useRef<HTMLDialogElement>(null);
   const confirmationCancelRef = useRef<HTMLButtonElement>(null);
+  const photoRef = useRef<HTMLButtonElement>(null);
+  const photoDragRef = useRef<PhotoDragSession | null>(null);
   const hydrated = useRef(false);
   const lastSavedSnapshot = useRef(serializeWorkspace(initialData, initialStyle));
   const sectionSensors = useSensors(
@@ -474,10 +500,71 @@ export default function Home() {
     if (!paper || !body) return 0;
     const paperBox = paper.getBoundingClientRect();
     const bodyBox = body.getBoundingClientRect();
+    const photoBox = photoRef.current?.getBoundingClientRect();
     const paperStyle = window.getComputedStyle(paper);
     const paddingBottom = Number.parseFloat(paperStyle.paddingBottom) || 0;
-    return bodyBox.bottom - paperBox.top + paddingBottom;
+    const scale = paper.offsetWidth / paperBox.width || 1;
+    const bodyBottom = (bodyBox.bottom - paperBox.top) * scale + paddingBottom;
+    const photoBottom = photoBox ? (photoBox.bottom - paperBox.top) * scale : 0;
+    return Math.max(bodyBottom, photoBottom);
   };
+
+  const clearPhotoFlow = useCallback(() => {
+    const paper = resumeRef.current;
+    if (!paper) return;
+    paper.querySelectorAll<HTMLElement>("[data-photo-flow]").forEach((target) => {
+      target.style.removeProperty("--photo-flow-left");
+      target.style.removeProperty("--photo-flow-right");
+      target.removeAttribute("data-photo-obstructed");
+      target.removeAttribute("data-photo-side");
+    });
+  }, []);
+
+  const applyPhotoFlow = useCallback((x: number, y: number) => {
+    const paper = resumeRef.current;
+    const photo = photoRef.current;
+    if (!paper || !photo || !style.showPhoto || !data.photo) {
+      clearPhotoFlow();
+      return;
+    }
+
+    photo.style.left = `${x}px`;
+    photo.style.top = `${y}px`;
+    clearPhotoFlow();
+
+    const paperBox = paper.getBoundingClientRect();
+    const scale = paper.offsetWidth / paperBox.width || 1;
+    const photoRight = x + PHOTO_SIZE;
+    const photoBottom = y + PHOTO_SIZE;
+    const targets = Array.from(paper.querySelectorAll<HTMLElement>("[data-photo-flow]"));
+
+    for (const target of targets) {
+      const box = target.getBoundingClientRect();
+      const left = (box.left - paperBox.left) * scale;
+      const right = (box.right - paperBox.left) * scale;
+      const top = (box.top - paperBox.top) * scale;
+      const bottom = (box.bottom - paperBox.top) * scale;
+      const verticalOverlap = photoBottom + PHOTO_GAP > top && y - PHOTO_GAP < bottom;
+      const horizontalOverlap = photoRight + PHOTO_GAP > left && x - PHOTO_GAP < right;
+      if (!verticalOverlap || !horizontalOverlap) continue;
+
+      const availableLeft = Math.max(0, x - PHOTO_GAP - left);
+      const availableRight = Math.max(0, right - photoRight - PHOTO_GAP);
+      const minimumReadableWidth = Math.min(190, (right - left) * 0.44);
+      const useRight = availableRight >= availableLeft;
+      const available = useRight ? availableRight : availableLeft;
+      if (available < minimumReadableWidth) continue;
+
+      if (useRight) {
+        target.style.setProperty("--photo-flow-left", `${Math.max(0, photoRight + PHOTO_GAP - left)}px`);
+        target.setAttribute("data-photo-side", "right");
+      } else {
+        target.style.setProperty("--photo-flow-right", `${Math.max(0, right - x + PHOTO_GAP)}px`);
+        target.setAttribute("data-photo-side", "left");
+      }
+      target.setAttribute("data-photo-obstructed", "true");
+    }
+  }, [clearPhotoFlow, data.photo, style.showPhoto]);
 
   useEffect(() => {
     let cancelled = false;
@@ -568,6 +655,14 @@ export default function Home() {
     if (resumeRef.current) observer.observe(resumeRef.current);
     return () => observer.disconnect();
   }, [data, style]);
+
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => {
+      if (style.showPhoto && data.photo) applyPhotoFlow(style.photoX, style.photoY);
+      else clearPhotoFlow();
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [applyPhotoFlow, clearPhotoFlow, data.photo, style.photoX, style.photoY, style.showPhoto]);
 
   const textLength = useMemo(() => JSON.stringify(data).length, [data]);
   const estimatedBytes = useMemo(() => {
@@ -834,18 +929,100 @@ export default function Home() {
     setPhotoError("");
   };
 
-  const movePhoto = (photoPosition: ResumeStyle["photoPosition"]) => {
-    setStyle((current) => ({ ...current, photoPosition }));
+  const photoBounds = () => {
+    const paper = resumeRef.current;
+    return {
+      height: Math.max(1056, paper?.scrollHeight || 1056),
+      width: paper?.offsetWidth || 816,
+    };
   };
 
-  const dropPhoto = (event: DragEvent<HTMLElement>) => {
+  const clampPhotoPosition = (x: number, y: number, width: number, height: number) => ({
+    x: Math.max(0, Math.min(width - PHOTO_SIZE, x)),
+    y: Math.max(0, Math.min(height - PHOTO_SIZE, y)),
+  });
+
+  const movePhotoTo = (x: number, y: number) => {
+    const bounds = photoBounds();
+    const next = clampPhotoPosition(x, y, bounds.width, bounds.height);
+    setStyle((current) => ({ ...current, photoX: next.x, photoY: next.y }));
+  };
+
+  const placePhoto = (placement: "left" | "center" | "right") => {
+    const { width } = photoBounds();
+    const x = placement === "left" ? 54 : placement === "right" ? width - PHOTO_SIZE - 54 : (width - PHOTO_SIZE) / 2;
+    movePhotoTo(x, 58);
+  };
+
+  const startPhotoDrag = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    if (event.button !== 0) return;
+    const paper = resumeRef.current;
+    if (!paper) return;
+    const paperBox = paper.getBoundingClientRect();
+    const scale = paper.offsetWidth / paperBox.width || 1;
+    const bounds = photoBounds();
+    photoDragRef.current = {
+      frame: null,
+      paperHeight: bounds.height,
+      paperWidth: bounds.width,
+      pointerId: event.pointerId,
+      scale,
+      startClientX: event.clientX,
+      startClientY: event.clientY,
+      startX: style.photoX,
+      startY: style.photoY,
+      x: style.photoX,
+      y: style.photoY,
+    };
+    event.currentTarget.setPointerCapture(event.pointerId);
     event.preventDefault();
-    const bounds = event.currentTarget.getBoundingClientRect();
-    const x = event.clientX - bounds.left;
-    const y = event.clientY - bounds.top;
-    const photoPosition = y < bounds.height * 0.3 ? "top" : x < bounds.width / 2 ? "left" : "right";
-    movePhoto(photoPosition);
+    setActiveText(null);
+    setDraggingPhoto(true);
+  };
+
+  const movePhotoPointer = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    const session = photoDragRef.current;
+    if (!session || event.pointerId !== session.pointerId) return;
+    const next = clampPhotoPosition(
+      session.startX + (event.clientX - session.startClientX) * session.scale,
+      session.startY + (event.clientY - session.startClientY) * session.scale,
+      session.paperWidth,
+      session.paperHeight,
+    );
+    session.x = next.x;
+    session.y = next.y;
+    if (session.frame !== null) return;
+    session.frame = window.requestAnimationFrame(() => {
+      session.frame = null;
+      applyPhotoFlow(session.x, session.y);
+    });
+  };
+
+  const finishPhotoDrag = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    const session = photoDragRef.current;
+    if (!session || event.pointerId !== session.pointerId) return;
+    if (session.frame !== null) window.cancelAnimationFrame(session.frame);
+    applyPhotoFlow(session.x, session.y);
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+    photoDragRef.current = null;
     setDraggingPhoto(false);
+    setStyle((current) => ({ ...current, photoX: session.x, photoY: session.y }));
+  };
+
+  const movePhotoWithKeyboard = (event: ReactKeyboardEvent<HTMLButtonElement>) => {
+    const directions: Record<string, [number, number]> = {
+      ArrowDown: [0, 1],
+      ArrowLeft: [-1, 0],
+      ArrowRight: [1, 0],
+      ArrowUp: [0, -1],
+    };
+    const direction = directions[event.key];
+    if (!direction) return;
+    event.preventDefault();
+    const distance = event.shiftKey ? 20 : 4;
+    movePhotoTo(style.photoX + direction[0] * distance, style.photoY + direction[1] * distance);
   };
 
   const downloadImage = async (format: "png" | "jpg") => {
@@ -1451,21 +1628,19 @@ export default function Home() {
                   </label>
                   {data.photo && style.showPhoto && (
                     <fieldset className="photo-position-control">
-                      <legend>Photo position</legend>
+                      <legend>Quick placement</legend>
                       <div className="segmented">
                         {(["left", "top", "right"] as const).map((position) => (
                           <button
-                            aria-pressed={style.photoPosition === position}
-                            className={style.photoPosition === position ? "selected" : ""}
                             key={position}
-                            onClick={() => movePhoto(position)}
+                            onClick={() => placePhoto(position === "top" ? "center" : position)}
                             type="button"
                           >
-                            {position}
+                            {position === "top" ? "center" : position}
                           </button>
                         ))}
                       </div>
-                      <small>Or drag the photo in the preview. The header text will reflow around it.</small>
+                      <small>Drag the photo anywhere on the page. Nearby text makes room automatically; arrow keys offer precise movement.</small>
                     </fieldset>
                   )}
                 </div>
@@ -1612,7 +1787,7 @@ export default function Home() {
 
           <div className="paper-wrap">
             <div
-              className={`resume-paper layout-${style.layout} font-${style.font} density-${style.density}`}
+              className={`resume-paper layout-${style.layout} font-${style.font} density-${style.density}${draggingPhoto ? " photo-is-dragging" : ""}`}
               ref={resumeRef}
               style={{
                 "--resume-accent": style.accent,
@@ -1620,20 +1795,27 @@ export default function Home() {
                 ...resumeFitVariables,
               } as React.CSSProperties}
             >
-              <header
-                className={
-                  style.showPhoto && data.photo
-                    ? `resume-header with-photo photo-${style.photoPosition}${draggingPhoto ? " photo-dragging" : ""}`
-                    : "resume-header"
-                }
-                onDragOver={(event) => {
-                  if (!style.showPhoto || !data.photo) return;
-                  event.preventDefault();
-                  event.dataTransfer.dropEffect = "move";
-                }}
-                onDrop={dropPhoto}
-              >
-                <div className="resume-identity">
+              {style.showPhoto && data.photo && (
+                <button
+                  aria-label={`Move ${data.name || "resume"} photo. Drag anywhere on the page, or use arrow keys for precise movement.`}
+                  className="resume-photo"
+                  onKeyDown={movePhotoWithKeyboard}
+                  onPointerCancel={finishPhotoDrag}
+                  onPointerDown={startPhotoDrag}
+                  onPointerMove={movePhotoPointer}
+                  onPointerUp={finishPhotoDrag}
+                  ref={photoRef}
+                  style={{ left: `${style.photoX}px`, top: `${style.photoY}px` }}
+                  title="Drag anywhere · Arrow keys move precisely · Shift moves faster"
+                  type="button"
+                >
+                  <img alt="" draggable={false} height={PHOTO_SIZE} src={data.photo} width={PHOTO_SIZE} />
+                  <span aria-hidden="true" className="photo-move-glyph">↗</span>
+                </button>
+              )}
+
+              <header className="resume-header">
+                <div className="resume-identity" data-photo-flow="">
                   <InlineEdit
                     {...inlineFontProps("contact:name", "var(--name-size, 34px)")}
                     as="h2"
@@ -1673,37 +1855,6 @@ export default function Home() {
                       ))}
                   </div>
                 </div>
-                {style.showPhoto && data.photo && (
-                  <img
-                    aria-label={`Move ${data.name || "resume"} photo. Drag it, or use the left, up, and right arrow keys.`}
-                    alt=""
-                    draggable
-                    height={82}
-                    onDragEnd={() => setDraggingPhoto(false)}
-                    onDragStart={(event) => {
-                      event.dataTransfer.effectAllowed = "move";
-                      event.dataTransfer.setData("text/plain", "resume-photo");
-                      setDraggingPhoto(true);
-                    }}
-                    onKeyDown={(event) => {
-                      if (event.key === "ArrowLeft") {
-                        event.preventDefault();
-                        movePhoto("left");
-                      } else if (event.key === "ArrowUp") {
-                        event.preventDefault();
-                        movePhoto("top");
-                      } else if (event.key === "ArrowRight") {
-                        event.preventDefault();
-                        movePhoto("right");
-                      }
-                    }}
-                    role="button"
-                    src={data.photo}
-                    tabIndex={0}
-                    title="Drag to reposition photo"
-                    width={82}
-                  />
-                )}
               </header>
 
               <div className="resume-body">
@@ -1714,6 +1865,7 @@ export default function Home() {
                       as="h3"
                       label={`${section.title} section title`}
                       onCommit={(value) => updateSection(section.id, { title: value })}
+                      photoFlow
                       placeholder="Section title"
                       value={section.title}
                     />
@@ -1732,11 +1884,12 @@ export default function Home() {
                           const entry = section.entries[0];
                           if (entry) updateEntry(section.id, entry.id, { details: value });
                         }}
+                        photoFlow
                         placeholder="Click to write a professional summary"
                         value={section.entries[0]?.details || ""}
                       />
                     ) : section.kind === "skills" ? (
-                      <div className="skill-list">
+                      <div className="skill-list" data-photo-flow="">
                         {section.entries.map((entry) => (
                           <div className="skill-row" key={entry.id}>
                             <InlineEdit
@@ -1761,7 +1914,7 @@ export default function Home() {
                     ) : (
                       <div className="resume-entry-list">
                         {section.entries.map((entry) => (
-                          <article className="resume-entry" key={entry.id}>
+                          <article className="resume-entry" data-photo-flow="" key={entry.id}>
                             <div className="resume-entry-heading">
                               <div>
                                 <InlineEdit
@@ -1923,7 +2076,7 @@ export default function Home() {
       )}
 
       <details className="version-widget no-print">
-        <summary aria-label="Open the Quicky Resume version 0.2.6 changelog">v0.2.6</summary>
+        <summary aria-label="Open the Quicky Resume version 0.2.7 changelog">v0.2.7</summary>
         <aside className="changelog-card" aria-label="Quicky Resume changelog">
           <div className="changelog-heading">
             <div>
@@ -1932,6 +2085,17 @@ export default function Home() {
             </div>
             <span>Latest</span>
           </div>
+          <section className="changelog-release">
+            <div>
+              <strong>v0.2.7</strong>
+              <time dateTime="2026-07-28">Jul 28, 2026</time>
+            </div>
+            <ul>
+              <li>Editorial Glass interface with Swiss Kinetic details</li>
+              <li>Freeform photo dragging across the full resume page</li>
+              <li>Obstacle-aware text reflow with precise keyboard movement</li>
+            </ul>
+          </section>
           <section className="changelog-release">
             <div>
               <strong>v0.2.6</strong>
