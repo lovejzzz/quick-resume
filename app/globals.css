@@ -186,6 +186,60 @@ button {
   text-transform: uppercase;
 }
 
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.history-actions {
+  padding: 3px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  border: 1px solid rgba(132, 145, 141, 0.25);
+  border-radius: 11px;
+  background: rgba(247, 249, 248, 0.72);
+}
+
+.history-actions button {
+  min-width: 62px;
+  height: 32px;
+  padding: 0 9px;
+  border: 0;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  color: #53615e;
+  background: transparent;
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: 720;
+  transition: 150ms ease;
+}
+
+.history-actions button > span:first-child {
+  font-family: Arial, sans-serif;
+  font-size: 17px;
+  line-height: 1;
+}
+
+.history-actions button:hover:not(:disabled),
+.history-actions button:focus-visible {
+  color: #1f5552;
+  background: rgba(229, 240, 238, 0.9);
+  outline: none;
+  transform: translateY(-1px);
+}
+
+.history-actions button:disabled {
+  color: #a6afac;
+  cursor: default;
+  opacity: 0.58;
+}
+
 .save-button {
   padding: 8px 11px;
   border: 1px solid transparent;
@@ -2583,6 +2637,7 @@ body {
 }
 
 .save-button,
+.history-actions,
 .version-widget summary {
   border-color: rgba(255, 255, 255, 0.8);
   background: rgba(255, 255, 255, 0.52);
@@ -2995,6 +3050,16 @@ body {
 
   .save-button {
     font-size: 0;
+  }
+
+  .history-actions button {
+    min-width: 32px;
+    width: 32px;
+    padding: 0;
+  }
+
+  .history-label {
+    display: none;
   }
 
   .brand-mark {

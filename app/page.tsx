@@ -150,6 +150,11 @@ type ConfirmationRequest = {
   tone: "accent" | "danger";
 };
 
+type WorkspaceSnapshot = {
+  data: ResumeData;
+  style: ResumeStyle;
+};
+
 type CollegeRecord = {
   city: string;
   name: string;
@@ -480,6 +485,9 @@ export default function Home() {
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [saveError, setSaveError] = useState("");
   const [confirmation, setConfirmation] = useState<ConfirmationRequest | null>(null);
+  const [canUndo, setCanUndo] = useState(false);
+  const [canRedo, setCanRedo] = useState(false);
+  const [changelogOpen, setChangelogOpen] = useState(false);
   const resumeRef = useRef<HTMLDivElement>(null);
   const editorScrollRef = useRef<HTMLDivElement>(null);
   const fontMenuRef = useRef<HTMLDetailsElement>(null);
@@ -487,7 +495,14 @@ export default function Home() {
   const confirmationCancelRef = useRef<HTMLButtonElement>(null);
   const photoRef = useRef<HTMLButtonElement>(null);
   const photoDragRef = useRef<PhotoDragSession | null>(null);
+  const versionWidgetRef = useRef<HTMLDetailsElement>(null);
   const hydrated = useRef(false);
+  const historyInitialized = useRef(false);
+  const applyingHistory = useRef(false);
+  const lastHistoryChangeAt = useRef(0);
+  const undoHistory = useRef<WorkspaceSnapshot[]>([]);
+  const redoHistory = useRef<WorkspaceSnapshot[]>([]);
+  const currentHistory = useRef<WorkspaceSnapshot>({ data: initialData, style: initialStyle });
   const lastSavedSnapshot = useRef(serializeWorkspace(initialData, initialStyle));
   const sectionSensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -602,6 +617,8 @@ export default function Home() {
     window.queueMicrotask(() => {
       if (cancelled) return;
       lastSavedSnapshot.current = serializeWorkspace(loadedData, loadedStyle);
+      currentHistory.current = { data: loadedData, style: loadedStyle };
+      historyInitialized.current = true;
       setData(loadedData);
       setStyle(loadedStyle);
       setHasUnsavedChanges(false);
@@ -617,6 +634,29 @@ export default function Home() {
     const changed = serializeWorkspace(data, style) !== lastSavedSnapshot.current;
     setHasUnsavedChanges(changed);
     if (changed) setSaveError("");
+  }, [data, style]);
+
+  useEffect(() => {
+    if (!hydrated.current || !historyInitialized.current) return;
+    if (applyingHistory.current) {
+      applyingHistory.current = false;
+      return;
+    }
+
+    const present = currentHistory.current;
+    if (serializeWorkspace(present.data, present.style) === serializeWorkspace(data, style)) return;
+
+    const now = Date.now();
+    const startsNewStep = lastHistoryChangeAt.current === 0 || now - lastHistoryChangeAt.current > 900;
+    if (startsNewStep) {
+      undoHistory.current.push(present);
+      if (undoHistory.current.length > 80) undoHistory.current.shift();
+    }
+    currentHistory.current = { data, style };
+    redoHistory.current = [];
+    lastHistoryChangeAt.current = now;
+    setCanUndo(undoHistory.current.length > 0);
+    setCanRedo(false);
   }, [data, style]);
 
   useEffect(() => {
@@ -637,6 +677,22 @@ export default function Home() {
     const focusFrame = window.requestAnimationFrame(() => confirmationCancelRef.current?.focus());
     return () => window.cancelAnimationFrame(focusFrame);
   }, [confirmation]);
+
+  useEffect(() => {
+    if (!changelogOpen) return;
+    const closeOnOutsidePointer = (event: PointerEvent) => {
+      if (!versionWidgetRef.current?.contains(event.target as Node)) setChangelogOpen(false);
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setChangelogOpen(false);
+    };
+    document.addEventListener("pointerdown", closeOnOutsidePointer);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("pointerdown", closeOnOutsidePointer);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [changelogOpen]);
 
   useEffect(() => {
     if (activeTab !== "content") return;
@@ -1121,6 +1177,34 @@ export default function Home() {
     }
   };
 
+  const undoWorkspace = () => {
+    const previous = undoHistory.current.pop();
+    if (!previous) return;
+    redoHistory.current.push(currentHistory.current);
+    currentHistory.current = previous;
+    applyingHistory.current = true;
+    lastHistoryChangeAt.current = 0;
+    setActiveText(null);
+    setData(previous.data);
+    setStyle(previous.style);
+    setCanUndo(undoHistory.current.length > 0);
+    setCanRedo(true);
+  };
+
+  const redoWorkspace = () => {
+    const next = redoHistory.current.pop();
+    if (!next) return;
+    undoHistory.current.push(currentHistory.current);
+    currentHistory.current = next;
+    applyingHistory.current = true;
+    lastHistoryChangeAt.current = 0;
+    setActiveText(null);
+    setData(next.data);
+    setStyle(next.style);
+    setCanUndo(true);
+    setCanRedo(redoHistory.current.length > 0);
+  };
+
   const clearAllText = () => {
     setConfirmation({
       confirmLabel: "Clear all text",
@@ -1226,17 +1310,41 @@ export default function Home() {
             </div>
           </div>
         </div>
-        <button
-          aria-live="polite"
-          className={`save-button${hasUnsavedChanges ? " unsaved" : ""}${saveError ? " error" : ""}`}
-          disabled={!hasUnsavedChanges}
-          onClick={saveResume}
-          title={saveError || (hasUnsavedChanges ? "Save changes on this device" : "All changes are saved")}
-          type="button"
-        >
-          <span className="save-dot" aria-hidden="true" />
-          <span>{saveError ? "Try save again" : hasUnsavedChanges ? "Save changes" : "Saved"}</span>
-        </button>
+        <div className="header-actions">
+          <div aria-label="Editing history" className="history-actions" role="group">
+            <button
+              aria-label="Undo last change"
+              disabled={!canUndo}
+              onClick={undoWorkspace}
+              title="Undo last change"
+              type="button"
+            >
+              <span aria-hidden="true">↶</span>
+              <span className="history-label">Undo</span>
+            </button>
+            <button
+              aria-label="Redo last undone change"
+              disabled={!canRedo}
+              onClick={redoWorkspace}
+              title="Redo last undone change"
+              type="button"
+            >
+              <span aria-hidden="true">↷</span>
+              <span className="history-label">Redo</span>
+            </button>
+          </div>
+          <button
+            aria-live="polite"
+            className={`save-button${hasUnsavedChanges ? " unsaved" : ""}${saveError ? " error" : ""}`}
+            disabled={!hasUnsavedChanges}
+            onClick={saveResume}
+            title={saveError || (hasUnsavedChanges ? "Save changes on this device" : "All changes are saved")}
+            type="button"
+          >
+            <span className="save-dot" aria-hidden="true" />
+            <span>{saveError ? "Try save again" : hasUnsavedChanges ? "Save changes" : "Saved"}</span>
+          </button>
+        </div>
       </header>
 
       <div className="workspace">
@@ -1507,8 +1615,7 @@ export default function Home() {
                   </div>
                 </div>
 
-                <fieldset className="choice-group">
-                  <legend>Research-backed layouts</legend>
+                <fieldset aria-label="Resume layouts" className="choice-group">
                   <div className="theme-grid">
                     {resumeThemes.map((theme) => (
                       <button
@@ -2101,16 +2208,29 @@ export default function Home() {
         </dialog>
       )}
 
-      <details className="version-widget no-print">
-        <summary aria-label="Open the Quicky Resume version 0.2.7 changelog">v0.2.7</summary>
+      <details
+        className="version-widget no-print"
+        onToggle={(event) => setChangelogOpen(event.currentTarget.open)}
+        open={changelogOpen}
+        ref={versionWidgetRef}
+      >
+        <summary aria-label="Open the Quicky Resume version 0.2.8 changelog">v0.2.8</summary>
         <aside className="changelog-card" aria-label="Quicky Resume changelog">
           <div className="changelog-heading">
-            <div>
-              <p className="eyebrow">Product updates</p>
-              <h2>Changelog</h2>
-            </div>
+            <h2>Changelog</h2>
             <span>Latest</span>
           </div>
+          <section className="changelog-release">
+            <div>
+              <strong>v0.2.8</strong>
+              <time dateTime="2026-07-28">Jul 28, 2026</time>
+            </div>
+            <ul>
+              <li>Multi-step undo and redo beside Save</li>
+              <li>Click-outside and Escape dismissal for the changelog</li>
+              <li>Simplified Style and changelog headings</li>
+            </ul>
+          </section>
           <section className="changelog-release">
             <div>
               <strong>v0.2.7</strong>
