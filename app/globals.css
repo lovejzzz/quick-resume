@@ -697,6 +697,28 @@ button {
   font-family: "Trebuchet MS", Arial, sans-serif;
 }
 
+[data-inline-edit] {
+  border-radius: 3px;
+  cursor: text;
+  outline: none;
+  transition: background 120ms ease, box-shadow 120ms ease;
+}
+
+[data-inline-edit]:empty::before {
+  content: attr(data-placeholder);
+  color: #9aa4a2;
+}
+
+[data-inline-edit]:hover {
+  background: color-mix(in srgb, var(--resume-accent) 7%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--resume-accent) 7%, transparent);
+}
+
+[data-inline-edit]:focus {
+  background: color-mix(in srgb, var(--resume-accent) 10%, white);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--resume-accent) 28%, transparent);
+}
+
 .resume-header {
   padding-bottom: 20px;
   border-bottom: 3px solid var(--resume-accent);
@@ -1008,5 +1030,12 @@ button {
     box-shadow: none;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
+  }
+
+  [data-inline-edit],
+  [data-inline-edit]:hover,
+  [data-inline-edit]:focus {
+    background: transparent;
+    box-shadow: none;
   }
 }

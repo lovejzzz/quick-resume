@@ -1,6 +1,15 @@
 "use client";
 
-import { ChangeEvent, DragEvent, useEffect, useMemo, useRef, useState } from "react";
+import {
+  ChangeEvent,
+  DragEvent,
+  ElementType,
+  KeyboardEvent as ReactKeyboardEvent,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import html2canvas from "html2canvas";
 
 type SectionKind = "summary" | "experience" | "projects" | "education" | "skills" | "awards" | "custom";
@@ -266,6 +275,86 @@ function safeFilename(name: string) {
   return `${name.trim().replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "") || "resume"}-resume`;
 }
 
+type InlineEditProps = {
+  as?: ElementType;
+  className?: string;
+  label: string;
+  multiline?: boolean;
+  onCommit: (value: string) => void;
+  placeholder?: string;
+  value: string;
+};
+
+function InlineEdit({
+  as: Tag = "span",
+  className,
+  label,
+  multiline = false,
+  onCommit,
+  placeholder = "",
+  value,
+}: InlineEditProps) {
+  const elementRef = useRef<HTMLElement>(null);
+  const isEditing = useRef(false);
+
+  useEffect(() => {
+    const element = elementRef.current;
+    if (!element || isEditing.current) return;
+    const visibleValue = multiline ? element.innerText : element.textContent;
+    if (visibleValue !== value) element.textContent = value;
+  }, [multiline, value]);
+
+  const finishEdit = () => {
+    const element = elementRef.current;
+    if (!element) return;
+    isEditing.current = false;
+    const rawValue = multiline ? element.innerText : element.textContent;
+    const nextValue = (rawValue || "").replace(/\u00a0/g, " ").trim();
+    element.textContent = nextValue;
+    onCommit(nextValue);
+  };
+
+  const handleKeyDown = (event: ReactKeyboardEvent<HTMLElement>) => {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      if (elementRef.current) elementRef.current.textContent = value;
+      event.currentTarget.blur();
+      return;
+    }
+    if (!multiline && event.key === "Enter") {
+      event.preventDefault();
+      event.currentTarget.blur();
+      return;
+    }
+    if (multiline && event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+      event.preventDefault();
+      event.currentTarget.blur();
+    }
+  };
+
+  return (
+    <Tag
+      aria-label={label}
+      className={className}
+      contentEditable
+      data-inline-edit=""
+      data-placeholder={placeholder}
+      onBlur={finishEdit}
+      onFocus={() => {
+        isEditing.current = true;
+      }}
+      onKeyDown={handleKeyDown}
+      ref={elementRef}
+      spellCheck
+      suppressContentEditableWarning
+      tabIndex={0}
+      title="Click to edit"
+    >
+      {value}
+    </Tag>
+  );
+}
+
 export default function Home() {
   const [data, setData] = useState<ResumeData>(initialData);
   const [style, setStyle] = useState<ResumeStyle>(initialStyle);
@@ -387,6 +476,12 @@ export default function Home() {
 
   const removeEntry = (section: ResumeSection, entryId: string) => {
     updateSection(section.id, { entries: section.entries.filter((entry) => entry.id !== entryId) });
+  };
+
+  const updateBullet = (sectionId: string, entry: ResumeEntry, bulletIndex: number, value: string) => {
+    const bullets = [...entry.bullets];
+    bullets[bulletIndex] = value;
+    updateEntry(sectionId, entry.id, { bullets });
   };
 
   const removeSection = (sectionId: string) => {
@@ -833,7 +928,7 @@ export default function Home() {
         <section className="preview-stage">
           <div className="preview-toolbar no-print">
             <div>
-              <span className="status-pill">Live preview</span>
+              <span className="status-pill">Click text to edit</span>
               <span>{pageCount} {pageCount === 1 ? "page" : "pages"}</span>
             </div>
             <button onClick={() => setActiveTab("export")} type="button">Export</button>
@@ -847,12 +942,40 @@ export default function Home() {
             >
               <header className={style.showPhoto && data.photo ? "resume-header with-photo" : "resume-header"}>
                 <div>
-                  <h2>{data.name || "Your Name"}</h2>
-                  <p className="resume-headline">{data.headline}</p>
+                  <InlineEdit
+                    as="h2"
+                    label="Name"
+                    onCommit={(value) => updateContact("name", value)}
+                    placeholder="Your Name"
+                    value={data.name}
+                  />
+                  <InlineEdit
+                    as="p"
+                    className="resume-headline"
+                    label="Professional headline"
+                    onCommit={(value) => updateContact("headline", value)}
+                    placeholder="Professional headline"
+                    value={data.headline}
+                  />
                   <div className="contact-line">
-                    {[data.email, data.phone, data.location, data.portfolio, data.secondaryLink]
+                    {([
+                      ["email", data.email],
+                      ["phone", data.phone],
+                      ["location", data.location],
+                      ["portfolio", data.portfolio],
+                      ["secondaryLink", data.secondaryLink],
+                    ] as const)
                       .filter(Boolean)
-                      .map((item, index) => <span key={`${item}-${index}`}>{item}</span>)}
+                      .filter(([, item]) => Boolean(item))
+                      .map(([key, item]) => (
+                        <InlineEdit
+                          as="span"
+                          key={key}
+                          label={key === "secondaryLink" ? "Additional link" : key}
+                          onCommit={(value) => updateContact(key, value)}
+                          value={item}
+                        />
+                      ))}
                   </div>
                 </div>
                 {style.showPhoto && data.photo && <img alt={`${data.name} portrait`} src={data.photo} />}
@@ -861,16 +984,45 @@ export default function Home() {
               <div className="resume-body">
                 {data.sections.map((section) => (
                   <section className={`resume-section kind-${section.kind}`} key={section.id}>
-                    <h3>{section.title}</h3>
+                    <InlineEdit
+                      as="h3"
+                      label={`${section.title} section title`}
+                      onCommit={(value) => updateSection(section.id, { title: value })}
+                      placeholder="Section title"
+                      value={section.title}
+                    />
 
                     {section.kind === "summary" ? (
-                      <p className="summary-text">{section.entries[0]?.details}</p>
+                      <InlineEdit
+                        as="p"
+                        className="summary-text"
+                        label="Professional summary"
+                        multiline
+                        onCommit={(value) => {
+                          const entry = section.entries[0];
+                          if (entry) updateEntry(section.id, entry.id, { details: value });
+                        }}
+                        placeholder="Click to write a professional summary"
+                        value={section.entries[0]?.details || ""}
+                      />
                     ) : section.kind === "skills" ? (
                       <div className="skill-list">
                         {section.entries.map((entry) => (
                           <div className="skill-row" key={entry.id}>
-                            <strong>{entry.heading}</strong>
-                            <span>{entry.details}</span>
+                            <InlineEdit
+                              as="strong"
+                              label="Skill category"
+                              onCommit={(value) => updateEntry(section.id, entry.id, { heading: value })}
+                              placeholder="Category"
+                              value={entry.heading}
+                            />
+                            <InlineEdit
+                              as="span"
+                              label={`${entry.heading || "Skill"} details`}
+                              onCommit={(value) => updateEntry(section.id, entry.id, { details: value })}
+                              placeholder="Skills"
+                              value={entry.details}
+                            />
                           </div>
                         ))}
                       </div>
@@ -880,16 +1032,64 @@ export default function Home() {
                           <article className="resume-entry" key={entry.id}>
                             <div className="resume-entry-heading">
                               <div>
-                                <h4>{entry.heading}</h4>
-                                {entry.subheading && <p>{entry.subheading}</p>}
+                                <InlineEdit
+                                  as="h4"
+                                  label={`${section.title} item title`}
+                                  onCommit={(value) => updateEntry(section.id, entry.id, { heading: value })}
+                                  placeholder="Item title"
+                                  value={entry.heading}
+                                />
+                                {entry.subheading && (
+                                  <InlineEdit
+                                    as="p"
+                                    label={`${entry.heading} supporting information`}
+                                    onCommit={(value) => updateEntry(section.id, entry.id, { subheading: value })}
+                                    value={entry.subheading}
+                                  />
+                                )}
                               </div>
-                              {entry.date && <time>{entry.date}</time>}
+                              {entry.date && (
+                                <InlineEdit
+                                  as="time"
+                                  label={`${entry.heading} date`}
+                                  onCommit={(value) => updateEntry(section.id, entry.id, { date: value })}
+                                  value={entry.date}
+                                />
+                              )}
                             </div>
-                            {entry.link && <p className="entry-link">{entry.link}</p>}
-                            {entry.details && <p className="entry-details">{entry.details}</p>}
+                            {entry.link && (
+                              <InlineEdit
+                                as="p"
+                                className="entry-link"
+                                label={`${entry.heading} link`}
+                                onCommit={(value) => updateEntry(section.id, entry.id, { link: value })}
+                                value={entry.link}
+                              />
+                            )}
+                            {entry.details && (
+                              <InlineEdit
+                                as="p"
+                                className="entry-details"
+                                label={`${entry.heading} details`}
+                                multiline
+                                onCommit={(value) => updateEntry(section.id, entry.id, { details: value })}
+                                value={entry.details}
+                              />
+                            )}
                             {entry.bullets.some((bullet) => bullet.trim()) && (
                               <ul>
-                                {entry.bullets.filter((bullet) => bullet.trim()).map((bullet, index) => <li key={index}>{bullet}</li>)}
+                                {entry.bullets.map((bullet, index) =>
+                                  bullet.trim() ? (
+                                    <InlineEdit
+                                      as="li"
+                                      key={index}
+                                      label={`${entry.heading} bullet ${index + 1}`}
+                                      multiline
+                                      onCommit={(value) => updateBullet(section.id, entry, index, value)}
+                                      value={bullet}
+                                    />
+                                  ) : null,
+                                )}
                               </ul>
                             )}
                           </article>
