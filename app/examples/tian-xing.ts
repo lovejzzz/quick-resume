@@ -1,4 +1,4 @@
-import type { ResumeData } from "../resume-model";
+import type { ResumeData } from "../lib/resume-model";
 
 /**
  * The example resume shown when Quicky Resume is first opened.

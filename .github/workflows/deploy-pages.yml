@@ -35,10 +35,12 @@ jobs:
         uses: actions/configure-pages@v5
 
       - name: Build static site
-        run: npm run build:pages
+        run: npm run build
         env:
-          GITHUB_PAGES: "true"
-          GITHUB_PAGES_BASE_PATH: ""
+          # Served from a custom apex domain, so there is no base path. For a
+          # project-page deployment set this to "/<repository-name>"; every
+          # runtime asset path and the service worker scope follow it.
+          NEXT_PUBLIC_BASE_PATH: ""
           NEXT_PUBLIC_SITE_URL: https://quickyresume.com
 
       - name: Disable Jekyll processing
