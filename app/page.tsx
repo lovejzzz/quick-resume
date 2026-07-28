@@ -490,6 +490,8 @@ export default function Home() {
   const [changelogOpen, setChangelogOpen] = useState(false);
   const resumeRef = useRef<HTMLDivElement>(null);
   const editorScrollRef = useRef<HTMLDivElement>(null);
+  const previewStageRef = useRef<HTMLElement>(null);
+  const paperViewportRef = useRef<HTMLDivElement>(null);
   const fontMenuRef = useRef<HTMLDetailsElement>(null);
   const confirmationDialogRef = useRef<HTMLDialogElement>(null);
   const confirmationCancelRef = useRef<HTMLButtonElement>(null);
@@ -503,6 +505,8 @@ export default function Home() {
   const undoHistory = useRef<WorkspaceSnapshot[]>([]);
   const redoHistory = useRef<WorkspaceSnapshot[]>([]);
   const currentHistory = useRef<WorkspaceSnapshot>({ data: initialData, style: initialStyle });
+  const contentScrollTarget = useRef<string | null>(null);
+  const contentScrollTimer = useRef<number | null>(null);
   const lastSavedSnapshot = useRef(serializeWorkspace(initialData, initialStyle));
   const sectionSensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -599,6 +603,22 @@ export default function Home() {
       target.setAttribute("data-photo-obstructed", "true");
     }
   }, [clearPhotoFlow, data.photo, style.showPhoto]);
+
+  const syncContentAnchor = useCallback(() => {
+    const container = editorScrollRef.current;
+    if (!container) return;
+    const guide = container.getBoundingClientRect().top + 118;
+    const anchors = Array.from(container.querySelectorAll<HTMLElement>("[data-content-anchor]"));
+    if (!anchors.length) return;
+    let active = anchors[0];
+    for (const anchor of anchors) {
+      if (anchor.getBoundingClientRect().top <= guide) active = anchor;
+      else break;
+    }
+    setActiveContentAnchor((current) =>
+      current === active.dataset.contentAnchor ? current : active.dataset.contentAnchor || "identity",
+    );
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -699,25 +719,44 @@ export default function Home() {
     const container = editorScrollRef.current;
     if (!container) return;
 
-    const syncActiveAnchor = () => {
-      const guide = container.getBoundingClientRect().top + 118;
-      const anchors = Array.from(container.querySelectorAll<HTMLElement>("[data-content-anchor]"));
-      if (!anchors.length) return;
-      let active = anchors[0];
-      for (const anchor of anchors) {
-        if (anchor.getBoundingClientRect().top <= guide) active = anchor;
-        else break;
-      }
-      setActiveContentAnchor((current) => (current === active.dataset.contentAnchor ? current : active.dataset.contentAnchor || "identity"));
+    const releaseProgrammaticScroll = () => {
+      contentScrollTarget.current = null;
+      if (contentScrollTimer.current !== null) window.clearTimeout(contentScrollTimer.current);
+      contentScrollTimer.current = null;
+      syncContentAnchor();
     };
 
-    const syncFrame = window.requestAnimationFrame(syncActiveAnchor);
-    container.addEventListener("scroll", syncActiveAnchor, { passive: true });
+    const handleScroll = () => {
+      if (!contentScrollTarget.current) {
+        syncContentAnchor();
+        return;
+      }
+      if (contentScrollTimer.current !== null) window.clearTimeout(contentScrollTimer.current);
+      contentScrollTimer.current = window.setTimeout(releaseProgrammaticScroll, 140);
+    };
+
+    const interruptProgrammaticScroll = () => {
+      if (contentScrollTarget.current) releaseProgrammaticScroll();
+    };
+
+    const syncFrame = window.requestAnimationFrame(() => {
+      if (!contentScrollTarget.current) syncContentAnchor();
+    });
+    container.addEventListener("scroll", handleScroll, { passive: true });
+    container.addEventListener("scrollend", releaseProgrammaticScroll);
+    container.addEventListener("wheel", interruptProgrammaticScroll, { passive: true });
+    container.addEventListener("touchstart", interruptProgrammaticScroll, { passive: true });
     return () => {
       window.cancelAnimationFrame(syncFrame);
-      container.removeEventListener("scroll", syncActiveAnchor);
+      if (contentScrollTimer.current !== null) window.clearTimeout(contentScrollTimer.current);
+      contentScrollTimer.current = null;
+      contentScrollTarget.current = null;
+      container.removeEventListener("scroll", handleScroll);
+      container.removeEventListener("scrollend", releaseProgrammaticScroll);
+      container.removeEventListener("wheel", interruptProgrammaticScroll);
+      container.removeEventListener("touchstart", interruptProgrammaticScroll);
     };
-  }, [activeTab, data.sections]);
+  }, [activeTab, data.sections, syncContentAnchor]);
 
   useEffect(() => {
     const updatePages = () => {
@@ -738,6 +777,33 @@ export default function Home() {
     });
     return () => window.cancelAnimationFrame(frame);
   }, [applyPhotoFlow, clearPhotoFlow, data.photo, style.photoX, style.photoY, style.showPhoto]);
+
+  useEffect(() => {
+    const stage = previewStageRef.current;
+    const viewport = paperViewportRef.current;
+    const paper = resumeRef.current;
+    if (!stage || !viewport || !paper) return;
+
+    const updatePreviewScale = () => {
+      const stageStyle = window.getComputedStyle(stage);
+      const availableWidth =
+        stage.clientWidth -
+        (Number.parseFloat(stageStyle.paddingLeft) || 0) -
+        (Number.parseFloat(stageStyle.paddingRight) || 0);
+      const scale = Math.max(0.34, Math.min(1, availableWidth / 816));
+      viewport.style.setProperty("--preview-scale", scale.toFixed(4));
+      viewport.style.height = `${Math.ceil(paper.scrollHeight * scale)}px`;
+    };
+
+    const updateFrame = window.requestAnimationFrame(updatePreviewScale);
+    const observer = new ResizeObserver(updatePreviewScale);
+    observer.observe(stage);
+    observer.observe(paper);
+    return () => {
+      window.cancelAnimationFrame(updateFrame);
+      observer.disconnect();
+    };
+  }, [data, style]);
 
   const textLength = useMemo(() => JSON.stringify(data).length, [data]);
   const estimatedBytes = useMemo(() => {
@@ -923,6 +989,13 @@ export default function Home() {
       container.getBoundingClientRect().top +
       container.scrollTop -
       12;
+    contentScrollTarget.current = anchor;
+    if (contentScrollTimer.current !== null) window.clearTimeout(contentScrollTimer.current);
+    contentScrollTimer.current = window.setTimeout(() => {
+      contentScrollTarget.current = null;
+      contentScrollTimer.current = null;
+      syncContentAnchor();
+    }, 900);
     container.scrollTo({ top, behavior: "smooth" });
     setActiveContentAnchor(anchor);
   };
@@ -1102,7 +1175,9 @@ export default function Home() {
 
   const downloadImage = async (format: "png" | "jpg") => {
     if (!resumeRef.current) return;
+    const paperWrap = resumeRef.current.closest<HTMLElement>(".paper-wrap");
     setExporting(true);
+    paperWrap?.classList.add("export-source");
     try {
       if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
       setActiveText(null);
@@ -1131,6 +1206,7 @@ export default function Home() {
         format === "jpg" ? jpgQuality : undefined,
       );
     } finally {
+      paperWrap?.classList.remove("export-source");
       setExporting(false);
     }
   };
@@ -1177,7 +1253,7 @@ export default function Home() {
     }
   };
 
-  const undoWorkspace = () => {
+  const undoWorkspace = useCallback(() => {
     const previous = undoHistory.current.pop();
     if (!previous) return;
     redoHistory.current.push(currentHistory.current);
@@ -1189,9 +1265,9 @@ export default function Home() {
     setStyle(previous.style);
     setCanUndo(undoHistory.current.length > 0);
     setCanRedo(true);
-  };
+  }, []);
 
-  const redoWorkspace = () => {
+  const redoWorkspace = useCallback(() => {
     const next = redoHistory.current.pop();
     if (!next) return;
     undoHistory.current.push(currentHistory.current);
@@ -1203,7 +1279,25 @@ export default function Home() {
     setStyle(next.style);
     setCanUndo(true);
     setCanRedo(redoHistory.current.length > 0);
-  };
+  }, []);
+
+  useEffect(() => {
+    const handleHistoryShortcut = (event: KeyboardEvent) => {
+      if (!event.metaKey && !event.ctrlKey) return;
+      const key = event.key.toLowerCase();
+      const requestsUndo = key === "z" && !event.shiftKey;
+      const requestsRedo = (key === "z" && event.shiftKey) || (key === "y" && event.ctrlKey);
+      if (requestsUndo && canUndo) {
+        event.preventDefault();
+        undoWorkspace();
+      } else if (requestsRedo && canRedo) {
+        event.preventDefault();
+        redoWorkspace();
+      }
+    };
+    document.addEventListener("keydown", handleHistoryShortcut);
+    return () => document.removeEventListener("keydown", handleHistoryShortcut);
+  }, [canRedo, canUndo, redoWorkspace, undoWorkspace]);
 
   const clearAllText = () => {
     setConfirmation({
@@ -1316,21 +1410,19 @@ export default function Home() {
               aria-label="Undo last change"
               disabled={!canUndo}
               onClick={undoWorkspace}
-              title="Undo last change"
+              title="Undo last change (⌘/Ctrl+Z)"
               type="button"
             >
-              <span aria-hidden="true">↶</span>
-              <span className="history-label">Undo</span>
+              Undo
             </button>
             <button
               aria-label="Redo last undone change"
               disabled={!canRedo}
               onClick={redoWorkspace}
-              title="Redo last undone change"
+              title="Redo last undone change (⌘/Ctrl+Shift+Z)"
               type="button"
             >
-              <span aria-hidden="true">↷</span>
-              <span className="history-label">Redo</span>
+              Redo
             </button>
           </div>
           <button
@@ -1912,21 +2004,23 @@ export default function Home() {
             const target = event.target as HTMLElement;
             if (!target.closest("[data-inline-edit], [data-font-tools]")) setActiveText(null);
           }}
+          ref={previewStageRef}
         >
           <div className="preview-toolbar no-print">
             <span>{pageCount} {pageCount === 1 ? "page" : "pages"}</span>
           </div>
 
-          <div className="paper-wrap">
-            <div
-              className={`resume-paper layout-${style.layout} font-${style.font} density-${style.density}${draggingPhoto ? " photo-is-dragging" : ""}`}
-              ref={resumeRef}
-              style={{
-                "--resume-accent": style.accent,
-                "--resume-font-family": selectedResumeFont.stack,
-                ...resumeFitVariables,
-              } as React.CSSProperties}
-            >
+          <div className="paper-viewport" ref={paperViewportRef}>
+            <div className="paper-wrap">
+              <div
+                className={`resume-paper layout-${style.layout} font-${style.font} density-${style.density}${draggingPhoto ? " photo-is-dragging" : ""}`}
+                ref={resumeRef}
+                style={{
+                  "--resume-accent": style.accent,
+                  "--resume-font-family": selectedResumeFont.stack,
+                  ...resumeFitVariables,
+                } as React.CSSProperties}
+              >
               {style.showPhoto && data.photo && (
                 <button
                   aria-label={`Move ${data.name || "resume"} photo. Drag anywhere on the page, or use arrow keys for precise movement.`}
@@ -2166,6 +2260,7 @@ export default function Home() {
                   </button>
                 </div>
               )}
+              </div>
             </div>
           </div>
         </section>
@@ -2214,12 +2309,24 @@ export default function Home() {
         open={changelogOpen}
         ref={versionWidgetRef}
       >
-        <summary aria-label="Open the Quicky Resume version 0.2.8 changelog">v0.2.8</summary>
+        <summary aria-label="Open the Quicky Resume version 0.2.9 changelog">v0.2.9</summary>
         <aside className="changelog-card" aria-label="Quicky Resume changelog">
           <div className="changelog-heading">
             <h2>Changelog</h2>
             <span>Latest</span>
           </div>
+          <section className="changelog-release">
+            <div>
+              <strong>v0.2.9</strong>
+              <time dateTime="2026-07-28">Jul 28, 2026</time>
+            </div>
+            <ul>
+              <li>Clean text-only undo and redo controls with keyboard shortcuts</li>
+              <li>Adaptive resume preview across screen sizes</li>
+              <li>Stable navigation during smooth scrolling</li>
+              <li>Simplified continuous preview without decorative page markers</li>
+            </ul>
+          </section>
           <section className="changelog-release">
             <div>
               <strong>v0.2.8</strong>

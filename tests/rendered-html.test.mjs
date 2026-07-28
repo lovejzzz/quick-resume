@@ -32,7 +32,7 @@ test("server-renders Quicky Resume and its example case", async () => {
   assert.match(html, /<title>Quicky Resume<\/title>/i);
   assert.match(html, /Quicky Resume/);
   assert.match(html, /Built by Tian Xing/);
-  assert.match(html, /v0\.2\.8/);
+  assert.match(html, /v0\.2\.9/);
   assert.match(html, /Changelog/);
   assert.match(html, /Tian Xing/);
   assert.match(html, /Educational Technologist/);
@@ -65,7 +65,7 @@ test("keeps the example data and five layouts separate from the editor", async (
   assert.doesNotMatch(page, /Research-backed layouts/);
   assert.match(page, /aria-label="Resume layouts"/);
   assert.match(packageJson, /"name": "quicky-resume"/);
-  assert.match(packageJson, /"version": "0\.2\.8"/);
+  assert.match(packageJson, /"version": "0\.2\.9"/);
 });
 
 test("uses an illustrated brand mark and keeps version history out of resume exports", async () => {
@@ -148,16 +148,42 @@ test("adds grouped undo and redo controls with click-away changelog dismissal", 
 
   assert.match(page, /const undoHistory = useRef<WorkspaceSnapshot\[]>\(\[\]\)/);
   assert.match(page, /const redoHistory = useRef<WorkspaceSnapshot\[]>\(\[\]\)/);
-  assert.match(page, /const undoWorkspace = \(\) =>/);
-  assert.match(page, /const redoWorkspace = \(\) =>/);
+  assert.match(page, /const undoWorkspace = useCallback\(\(\) =>/);
+  assert.match(page, /const redoWorkspace = useCallback\(\(\) =>/);
   assert.match(page, /aria-label="Undo last change"/);
   assert.match(page, /aria-label="Redo last undone change"/);
+  assert.doesNotMatch(page, /↶|↷/);
   assert.match(page, /now - lastHistoryChangeAt\.current > 900/);
+  assert.match(page, /event\.metaKey/);
+  assert.match(page, /event\.ctrlKey/);
+  assert.match(page, /key === "z"/);
+  assert.match(page, /key === "y"/);
   assert.match(page, /document\.addEventListener\("pointerdown", closeOnOutsidePointer\)/);
   assert.match(page, /event\.key === "Escape"/);
   assert.doesNotMatch(page, /Product updates/);
   assert.doesNotMatch(page, /Research-backed layouts/);
   assert.match(styles, /\.history-actions/);
+});
+
+test("scales the preview responsively and stabilizes content navigation", async () => {
+  const [page, styles] = await Promise.all([
+    readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(page, /className="paper-viewport"/);
+  assert.match(page, /const updatePreviewScale = \(\) =>/);
+  assert.match(page, /availableWidth \/ 816/);
+  assert.match(page, /observer\.observe\(stage\)/);
+  assert.match(page, /contentScrollTarget\.current = anchor/);
+  assert.match(page, /addEventListener\("scrollend", releaseProgrammaticScroll\)/);
+  assert.match(page, /window\.setTimeout\(releaseProgrammaticScroll, 140\)/);
+  assert.match(page, /classList\.add\("export-source"\)/);
+  assert.match(styles, /\.paper-viewport/);
+  assert.match(styles, /transform: scale\(var\(--preview-scale\)\)/);
+  assert.match(styles, /@media \(max-width: 420px\)/);
+  assert.match(styles, /\.paper-wrap\.export-source/);
+  assert.doesNotMatch(styles, /\.preview-stage::before/);
 });
 
 test("opens Style first and keeps fit and photo controls in their intended panels", async () => {
