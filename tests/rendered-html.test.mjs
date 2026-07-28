@@ -49,6 +49,10 @@ test("keeps the example data and five layouts separate from the editor", async (
   assert.match(page, /const initialData: ResumeData = tianXingExample/);
   assert.match(example, /export const tianXingExample: ResumeData/);
   assert.match(example, /name: "Tian Xing"/);
+  assert.match(example, /date: "2026\/02-2026\/05"/);
+  assert.match(example, /A website turn a syllabus into a full teachable course\./);
+  assert.match(example, /ECT Creative Excellence Award Recipient/);
+  assert.match(example, /IPA International Photography Award - 3rd place/);
   assert.match(model, /export type ResumeData/);
   assert.match(model, /export type ResumeLayout/);
   assert.equal((themes.match(/id: "(classic|modern|executive|technical|academic)"/g) ?? []).length, 5);
