@@ -2,7 +2,8 @@ import type { NextConfig } from "next";
 
 const isGitHubPages = process.env.GITHUB_PAGES === "true";
 const repositoryName = process.env.GITHUB_REPOSITORY?.split("/")[1] ?? "quick-resume";
-const pagesBasePath = `/${repositoryName}`;
+const pagesBasePath =
+  process.env.GITHUB_PAGES_BASE_PATH ?? `/${repositoryName}`;
 
 const nextConfig: NextConfig = {
   ...(isGitHubPages

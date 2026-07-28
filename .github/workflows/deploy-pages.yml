@@ -38,7 +38,8 @@ jobs:
         run: npm run build:pages
         env:
           GITHUB_PAGES: "true"
-          NEXT_PUBLIC_SITE_URL: https://lovejzzz.github.io/quick-resume
+          GITHUB_PAGES_BASE_PATH: ""
+          NEXT_PUBLIC_SITE_URL: https://quickyresume.com
 
       - name: Disable Jekyll processing
         run: touch out/.nojekyll
