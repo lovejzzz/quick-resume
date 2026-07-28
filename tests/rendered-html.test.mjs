@@ -32,7 +32,7 @@ test("server-renders Quicky Resume and its example case", async () => {
   assert.match(html, /<title>Quicky Resume<\/title>/i);
   assert.match(html, /Quicky Resume/);
   assert.match(html, /Built by Tian Xing/);
-  assert.match(html, /v0\.2\.5/);
+  assert.match(html, /v0\.2\.6/);
   assert.match(html, /Changelog/);
   assert.match(html, /Tian Xing/);
   assert.match(html, /Educational Technologist/);
@@ -64,7 +64,7 @@ test("keeps the example data and five layouts separate from the editor", async (
   assert.equal((themes.match(/id: "(classic|modern|executive|technical|academic)"/g) ?? []).length, 5);
   assert.match(page, /Research-backed layouts/);
   assert.match(packageJson, /"name": "quicky-resume"/);
-  assert.match(packageJson, /"version": "0\.2\.5"/);
+  assert.match(packageJson, /"version": "0\.2\.6"/);
 });
 
 test("uses an illustrated brand mark and keeps version history out of resume exports", async () => {
@@ -181,4 +181,29 @@ test("adds a tab icon, U.S. college autocomplete, and reflowing photo positions"
   assert.match(styles, /\.resume-header\.photo-left/);
   assert.match(styles, /\.resume-header\.photo-top/);
   assert.match(styles, /\.resume-header\.photo-right/);
+});
+
+test("adds content navigation, fluid sortable sections, and thirty ranked fonts", async () => {
+  const [page, styles, fonts, model] = await Promise.all([
+    readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+    readFile(new URL("../app/resume-fonts.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/resume-model.ts", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(page, /className="content-sidebar"/);
+  assert.match(page, /const scrollContentTo = \(anchor: string\)/);
+  assert.match(page, /data-content-anchor=\{section\.id\}/);
+  assert.match(page, /<DndContext/);
+  assert.match(page, /<SortableContext/);
+  assert.match(page, /<DragOverlay/);
+  assert.match(page, /useSensor\(PointerSensor/);
+  assert.match(page, /sortableKeyboardCoordinates/);
+  assert.match(styles, /cubic-bezier\(0\.22, 1, 0\.36, 1\)/);
+  assert.equal((fonts.match(/\{ id: "/g) ?? []).length, 30);
+  assert.match(fonts, /id: "calibri"/);
+  assert.match(fonts, /id: "arial"/);
+  assert.match(fonts, /id: "helvetica"/);
+  assert.match(model, /resumeFont: ResumeFontId/);
+  assert.match(page, /--resume-font-family/);
 });

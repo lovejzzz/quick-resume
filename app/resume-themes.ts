@@ -7,6 +7,7 @@ export type ResumeTheme = {
   description: string;
   accent: string;
   font: ResumeStyle["font"];
+  resumeFont: ResumeStyle["resumeFont"];
   density: ResumeStyle["density"];
   sectionPriority: SectionKind[];
 };
@@ -19,6 +20,7 @@ export const resumeThemes: ResumeTheme[] = [
     description: "Conservative typography and familiar hierarchy for fast scanning.",
     accent: "#20252b",
     font: "classic",
+    resumeFont: "arial",
     density: "comfortable",
     sectionPriority: ["summary", "experience", "education", "projects", "skills", "awards", "custom"],
   },
@@ -29,6 +31,7 @@ export const resumeThemes: ResumeTheme[] = [
     description: "A crisp, balanced layout with restrained color and clear section rhythm.",
     accent: "#28605d",
     font: "modern",
+    resumeFont: "calibri",
     density: "comfortable",
     sectionPriority: ["summary", "experience", "projects", "education", "skills", "awards", "custom"],
   },
@@ -39,6 +42,7 @@ export const resumeThemes: ResumeTheme[] = [
     description: "Leads with impact, a centered identity block, and stronger section authority.",
     accent: "#243b5a",
     font: "classic",
+    resumeFont: "garamond",
     density: "comfortable",
     sectionPriority: ["summary", "experience", "skills", "projects", "education", "awards", "custom"],
   },
@@ -49,6 +53,7 @@ export const resumeThemes: ResumeTheme[] = [
     description: "Compact, skills-forward structure for tools, projects, and measurable work.",
     accent: "#24577a",
     font: "modern",
+    resumeFont: "inter",
     density: "compact",
     sectionPriority: ["summary", "skills", "projects", "experience", "education", "awards", "custom"],
   },
@@ -59,6 +64,7 @@ export const resumeThemes: ResumeTheme[] = [
     description: "Education-first hierarchy with a warm, scholarly editorial character.",
     accent: "#7a3045",
     font: "humanist",
+    resumeFont: "georgia",
     density: "comfortable",
     sectionPriority: ["education", "summary", "experience", "projects", "awards", "skills", "custom"],
   },

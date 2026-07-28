@@ -5,13 +5,34 @@ import {
   DragEvent,
   ElementType,
   KeyboardEvent as ReactKeyboardEvent,
+  ReactNode,
   useEffect,
   useMemo,
   useRef,
   useState,
 } from "react";
 import html2canvas from "html2canvas";
+import {
+  closestCenter,
+  DndContext,
+  DragEndEvent,
+  DragOverlay,
+  DragStartEvent,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { tianXingExample } from "./examples/tian-xing";
+import { getResumeFont, resumeFonts } from "./resume-fonts";
 import type {
   ResumeData,
   ResumeEntry,
@@ -35,6 +56,7 @@ const initialStyle: ResumeStyle = {
   fontAdjustments: {},
   layout: "modern",
   photoPosition: "right",
+  resumeFont: "calibri",
   showPhoto: false,
 };
 
@@ -259,6 +281,82 @@ function SchoolAutocomplete({ entryId, onChange, value }: SchoolAutocompleteProp
   );
 }
 
+type SortableSectionCardProps = {
+  children: ReactNode;
+  index: number;
+  onMove: (direction: -1 | 1) => void;
+  onRemove: () => void;
+  onRename: (title: string) => void;
+  section: ResumeSection;
+  sectionCount: number;
+};
+
+function SortableSectionCard({
+  children,
+  index,
+  onMove,
+  onRemove,
+  onRename,
+  section,
+  sectionCount,
+}: SortableSectionCardProps) {
+  const {
+    attributes,
+    isDragging,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+  } = useSortable({
+    id: section.id,
+    transition: {
+      duration: 260,
+      easing: "cubic-bezier(0.22, 1, 0.36, 1)",
+    },
+  });
+
+  return (
+    <article
+      className={`section-card${isDragging ? " sorting-source" : ""}`}
+      data-content-anchor={section.id}
+      id={`content-section-${section.id}`}
+      ref={setNodeRef}
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition,
+        zIndex: isDragging ? 45 : undefined,
+      }}
+    >
+      <div className="section-card-head">
+        <button
+          {...attributes}
+          {...listeners}
+          aria-label={`Drag ${section.title} to reorder`}
+          className="drag-handle"
+          title="Drag to reorder. Press Space to use arrow keys."
+          type="button"
+        >
+          <i />
+          <i />
+          <i />
+        </button>
+        <input
+          aria-label="Section title"
+          className="section-title-input"
+          value={section.title}
+          onChange={(event) => onRename(event.target.value)}
+        />
+        <div className="section-actions">
+          <button disabled={index === 0} onClick={() => onMove(-1)} title="Move up" type="button">↑</button>
+          <button disabled={index === sectionCount - 1} onClick={() => onMove(1)} title="Move down" type="button">↓</button>
+          <button className="danger-action" onClick={onRemove} title="Remove section" type="button">×</button>
+        </div>
+      </div>
+      {children}
+    </article>
+  );
+}
+
 function InlineEdit({
   as: Tag = "span",
   className,
@@ -352,16 +450,23 @@ export default function Home() {
   const [photoError, setPhotoError] = useState("");
   const [draggingPhoto, setDraggingPhoto] = useState(false);
   const [draggedSection, setDraggedSection] = useState<string | null>(null);
+  const [activeContentAnchor, setActiveContentAnchor] = useState("identity");
   const [activeText, setActiveText] = useState<{ id: string; label: string; top: number } | null>(null);
   const [pageCount, setPageCount] = useState(1);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [saveError, setSaveError] = useState("");
   const [confirmation, setConfirmation] = useState<ConfirmationRequest | null>(null);
   const resumeRef = useRef<HTMLDivElement>(null);
+  const editorScrollRef = useRef<HTMLDivElement>(null);
+  const fontMenuRef = useRef<HTMLDetailsElement>(null);
   const confirmationDialogRef = useRef<HTMLDialogElement>(null);
   const confirmationCancelRef = useRef<HTMLButtonElement>(null);
   const hydrated = useRef(false);
   const lastSavedSnapshot = useRef(serializeWorkspace(initialData, initialStyle));
+  const sectionSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
 
   const getResumeContentHeight = () => {
     const paper = resumeRef.current;
@@ -428,6 +533,31 @@ export default function Home() {
   }, [confirmation]);
 
   useEffect(() => {
+    if (activeTab !== "content") return;
+    const container = editorScrollRef.current;
+    if (!container) return;
+
+    const syncActiveAnchor = () => {
+      const guide = container.getBoundingClientRect().top + 118;
+      const anchors = Array.from(container.querySelectorAll<HTMLElement>("[data-content-anchor]"));
+      if (!anchors.length) return;
+      let active = anchors[0];
+      for (const anchor of anchors) {
+        if (anchor.getBoundingClientRect().top <= guide) active = anchor;
+        else break;
+      }
+      setActiveContentAnchor((current) => (current === active.dataset.contentAnchor ? current : active.dataset.contentAnchor || "identity"));
+    };
+
+    const syncFrame = window.requestAnimationFrame(syncActiveAnchor);
+    container.addEventListener("scroll", syncActiveAnchor, { passive: true });
+    return () => {
+      window.cancelAnimationFrame(syncFrame);
+      container.removeEventListener("scroll", syncActiveAnchor);
+    };
+  }, [activeTab, data.sections]);
+
+  useEffect(() => {
     const updatePages = () => {
       if (!resumeRef.current) return;
       const contentHeight = getResumeContentHeight();
@@ -448,6 +578,7 @@ export default function Home() {
     if (exportFormat === "jpg") return pixels * (0.045 + density * 0.05) * jpgQuality + photoBytes * 0.45;
     return 70000 + textLength * 9 + pageCount * 38000 + photoBytes * 0.25;
   }, [data.photo, exportFormat, exportScale, jpgQuality, pageCount, textLength]);
+  const selectedResumeFont = getResumeFont(style.resumeFont);
 
   const resumeFitVariables = useMemo(() => {
     const clamp = (value: number) => Math.max(0, Math.min(1, value));
@@ -545,6 +676,7 @@ export default function Home() {
       density: theme.density,
       font: theme.font,
       layout: theme.id,
+      resumeFont: theme.resumeFont,
     }));
     setData((current) => {
       const priority = new Map(theme.sectionPriority.map((kind, index) => [kind, index]));
@@ -590,19 +722,39 @@ export default function Home() {
     });
   };
 
-  const dropSection = (targetId: string) => {
-    const sourceId = draggedSection;
+  const beginSectionDrag = (event: DragStartEvent) => {
+    setDraggedSection(String(event.active.id));
+  };
+
+  const finishSectionDrag = (event: DragEndEvent) => {
     setDraggedSection(null);
-    if (!sourceId || sourceId === targetId) return;
+    const sourceId = String(event.active.id);
+    const targetId = event.over ? String(event.over.id) : null;
+    if (!targetId || sourceId === targetId) return;
     setData((current) => {
       const from = current.sections.findIndex((section) => section.id === sourceId);
       const to = current.sections.findIndex((section) => section.id === targetId);
       if (from < 0 || to < 0) return current;
-      const sections = [...current.sections];
-      const [moved] = sections.splice(from, 1);
-      sections.splice(to, 0, moved);
-      return { ...current, sections };
+      return { ...current, sections: arrayMove(current.sections, from, to) };
     });
+  };
+
+  const scrollContentTo = (anchor: string) => {
+    const container = editorScrollRef.current;
+    const target =
+      anchor === "identity"
+        ? document.getElementById("content-identity")
+        : anchor === "add-section"
+          ? document.getElementById("content-add-section")
+          : document.getElementById(`content-section-${anchor}`);
+    if (!container || !target) return;
+    const top =
+      target.getBoundingClientRect().top -
+      container.getBoundingClientRect().top +
+      container.scrollTop -
+      12;
+    container.scrollTo({ top, behavior: "smooth" });
+    setActiveContentAnchor(anchor);
   };
 
   const addSection = (kind: SectionKind) => {
@@ -900,10 +1052,45 @@ export default function Home() {
             ))}
           </nav>
 
-          <div className="editor-scroll">
+          <div className="editor-scroll" ref={editorScrollRef}>
             {activeTab === "content" && (
-              <>
-                <section className="panel-block">
+              <div className="content-layout">
+                <nav aria-label="Content sections" className="content-sidebar">
+                  <p>Navigate</p>
+                  <button
+                    className={activeContentAnchor === "identity" ? "active" : ""}
+                    onClick={() => scrollContentTo("identity")}
+                    type="button"
+                  >
+                    <span aria-hidden="true">01</span>
+                    Identity
+                  </button>
+                  <div className="content-nav-sections">
+                    <small>Sections</small>
+                    {data.sections.map((section, index) => (
+                      <button
+                        className={activeContentAnchor === section.id ? "active" : ""}
+                        key={section.id}
+                        onClick={() => scrollContentTo(section.id)}
+                        type="button"
+                      >
+                        <span aria-hidden="true">{String(index + 2).padStart(2, "0")}</span>
+                        {section.title || "Untitled"}
+                      </button>
+                    ))}
+                  </div>
+                  <button
+                    className={`content-nav-add${activeContentAnchor === "add-section" ? " active" : ""}`}
+                    onClick={() => scrollContentTo("add-section")}
+                    type="button"
+                  >
+                    <span aria-hidden="true">+</span>
+                    Add section
+                  </button>
+                </nav>
+
+                <div className="content-flow">
+                <section className="panel-block" data-content-anchor="identity" id="content-identity">
                   <div className="panel-heading">
                     <div>
                       <p className="eyebrow">Header</p>
@@ -964,7 +1151,7 @@ export default function Home() {
                   </div>
                 </section>
 
-                <section className="panel-block">
+                <section className="panel-block content-sections-panel">
                   <div className="panel-heading">
                     <div>
                       <p className="eyebrow">Structure</p>
@@ -973,42 +1160,28 @@ export default function Home() {
                     <span className="helper">Drag or use arrows</span>
                   </div>
 
-                  <div className="section-stack">
+                  <DndContext
+                    collisionDetection={closestCenter}
+                    onDragCancel={() => setDraggedSection(null)}
+                    onDragEnd={finishSectionDrag}
+                    onDragStart={beginSectionDrag}
+                    sensors={sectionSensors}
+                  >
+                    <SortableContext
+                      items={data.sections.map((section) => section.id)}
+                      strategy={verticalListSortingStrategy}
+                    >
+                      <div className="section-stack">
                     {data.sections.map((section, sectionIndex) => (
-                      <article
-                        className={draggedSection === section.id ? "section-card dragging" : "section-card"}
+                      <SortableSectionCard
+                        index={sectionIndex}
                         key={section.id}
-                        onDragOver={(event: DragEvent) => event.preventDefault()}
-                        onDrop={() => dropSection(section.id)}
+                        onMove={(direction) => moveSection(section.id, direction)}
+                        onRemove={() => removeSection(section.id)}
+                        onRename={(title) => updateSection(section.id, { title })}
+                        section={section}
+                        sectionCount={data.sections.length}
                       >
-                        <div className="section-card-head">
-                          <span
-                            aria-label={`Drag ${section.title} to reorder`}
-                            className="drag-handle"
-                            draggable
-                            onDragEnd={() => setDraggedSection(null)}
-                            onDragStart={(event) => {
-                              event.dataTransfer.effectAllowed = "move";
-                              setDraggedSection(section.id);
-                            }}
-                            role="button"
-                            title="Drag to reorder"
-                          >
-                            ⋮⋮
-                          </span>
-                          <input
-                            aria-label="Section title"
-                            className="section-title-input"
-                            value={section.title}
-                            onChange={(event) => updateSection(section.id, { title: event.target.value })}
-                          />
-                          <div className="section-actions">
-                            <button disabled={sectionIndex === 0} onClick={() => moveSection(section.id, -1)} title="Move up" type="button">↑</button>
-                            <button disabled={sectionIndex === data.sections.length - 1} onClick={() => moveSection(section.id, 1)} title="Move down" type="button">↓</button>
-                            <button className="danger-action" onClick={() => removeSection(section.id)} title="Remove section" type="button">×</button>
-                          </div>
-                        </div>
-
                         <div className="entry-stack">
                           {section.entries.map((entry, entryIndex) => (
                             <div className="entry-editor" key={entry.id}>
@@ -1080,11 +1253,28 @@ export default function Home() {
                         {section.kind !== "summary" && (
                           <button className="text-button" onClick={() => addEntry(section)} type="button">+ Add item</button>
                         )}
-                      </article>
+                      </SortableSectionCard>
                     ))}
-                  </div>
+                      </div>
+                    </SortableContext>
+                    <DragOverlay
+                      adjustScale={false}
+                      dropAnimation={{
+                        duration: 280,
+                        easing: "cubic-bezier(0.22, 1, 0.36, 1)",
+                      }}
+                    >
+                      {draggedSection ? (
+                        <div className="section-drag-overlay">
+                          <span aria-hidden="true" className="overlay-grip"><i /><i /><i /></span>
+                          <strong>{data.sections.find((section) => section.id === draggedSection)?.title}</strong>
+                          <small>Move to reorder</small>
+                        </div>
+                      ) : null}
+                    </DragOverlay>
+                  </DndContext>
 
-                  <div className="add-section-row">
+                  <div className="add-section-row" data-content-anchor="add-section" id="content-add-section">
                     <label className="field">
                       <span>Add another section</span>
                       <select defaultValue="" onChange={(event) => {
@@ -1102,7 +1292,8 @@ export default function Home() {
                     </label>
                   </div>
                 </section>
-              </>
+                </div>
+              </div>
             )}
 
             {activeTab === "style" && (
@@ -1145,26 +1336,49 @@ export default function Home() {
                   </p>
                 </fieldset>
 
-                <fieldset className="choice-group">
-                  <legend>Fine-tune typeface</legend>
-                  <div className="choice-grid">
-                    {([
-                      ["modern", "Modern", "Clear and ATS-friendly"],
-                      ["classic", "Classic", "Editorial and traditional"],
-                      ["humanist", "Humanist", "Warm and approachable"],
-                    ] as const).map(([value, label, note]) => (
-                      <label className={style.font === value ? "choice-card selected" : "choice-card"} key={value}>
-                        <input
-                          checked={style.font === value}
-                          name="font"
-                          onChange={() => setStyle((current) => ({ ...current, font: value }))}
-                          type="radio"
-                        />
-                        <strong>{label}</strong>
-                        <span>{note}</span>
-                      </label>
-                    ))}
-                  </div>
+                <fieldset className="choice-group font-choice-group">
+                  <legend>Resume font</legend>
+                  <details className="font-picker" ref={fontMenuRef}>
+                    <summary style={{ fontFamily: selectedResumeFont.stack }}>
+                      <span>
+                        <strong>{selectedResumeFont.label}</strong>
+                        <small>{selectedResumeFont.note}</small>
+                      </span>
+                      <i aria-hidden="true">⌄</i>
+                    </summary>
+                    <div className="font-picker-menu">
+                      <div className="font-picker-intro">
+                        <strong>30 professional fonts</strong>
+                        <span>Ordered by how often they appear in current ATS-safe resume guidance.</span>
+                      </div>
+                      <div className="font-option-list">
+                        {resumeFonts.map((font, index) => (
+                          <button
+                            aria-pressed={style.resumeFont === font.id}
+                            className={style.resumeFont === font.id ? "selected" : ""}
+                            key={font.id}
+                            onClick={() => {
+                              setStyle((current) => ({ ...current, resumeFont: font.id }));
+                              fontMenuRef.current?.removeAttribute("open");
+                            }}
+                            style={{ fontFamily: font.stack }}
+                            type="button"
+                          >
+                            <span className="font-rank">{String(index + 1).padStart(2, "0")}</span>
+                            <span className="font-sample">Ag</span>
+                            <span className="font-option-copy">
+                              <strong>{font.label}</strong>
+                              <small>{font.note}</small>
+                            </span>
+                            <span aria-hidden="true" className="font-option-check">✓</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </details>
+                  <p className="font-picker-note">
+                    The first choices are the safest defaults. Every option stays selectable text in PDF export.
+                  </p>
                 </fieldset>
 
                 <fieldset className="choice-group">
@@ -1400,7 +1614,11 @@ export default function Home() {
             <div
               className={`resume-paper layout-${style.layout} font-${style.font} density-${style.density}`}
               ref={resumeRef}
-              style={{ "--resume-accent": style.accent, ...resumeFitVariables } as React.CSSProperties}
+              style={{
+                "--resume-accent": style.accent,
+                "--resume-font-family": selectedResumeFont.stack,
+                ...resumeFitVariables,
+              } as React.CSSProperties}
             >
               <header
                 className={
@@ -1705,7 +1923,7 @@ export default function Home() {
       )}
 
       <details className="version-widget no-print">
-        <summary aria-label="Open the Quicky Resume version 0.2.5 changelog">v0.2.5</summary>
+        <summary aria-label="Open the Quicky Resume version 0.2.6 changelog">v0.2.6</summary>
         <aside className="changelog-card" aria-label="Quicky Resume changelog">
           <div className="changelog-heading">
             <div>
@@ -1714,6 +1932,17 @@ export default function Home() {
             </div>
             <span>Latest</span>
           </div>
+          <section className="changelog-release">
+            <div>
+              <strong>v0.2.6</strong>
+              <time dateTime="2026-07-28">Jul 28, 2026</time>
+            </div>
+            <ul>
+              <li>Content navigation sidebar with section shortcuts</li>
+              <li>Fluid pointer and keyboard section reordering</li>
+              <li>Thirty ranked professional resume fonts</li>
+            </ul>
+          </section>
           <section className="changelog-release">
             <div>
               <strong>v0.2.5</strong>

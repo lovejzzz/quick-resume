@@ -1,3 +1,5 @@
+import type { ResumeFontId } from "./resume-fonts";
+
 export type SectionKind =
   | "summary"
   | "experience"
@@ -51,5 +53,6 @@ export type ResumeStyle = {
   fontAdjustments: Record<string, number>;
   layout: ResumeLayout;
   photoPosition: "left" | "top" | "right";
+  resumeFont: ResumeFontId;
   showPhoto: boolean;
 };

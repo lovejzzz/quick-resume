@@ -13,7 +13,9 @@ logic.
 ## Features
 
 - Edit through structured form fields or directly in the resume preview
-- Add, remove, rename, and reorder resume sections
+- Navigate sections from a sticky Content sidebar
+- Add, remove, rename, and fluidly reorder resume sections with pointer or
+  keyboard controls
 - Save changes locally without an account or database
 - Find U.S. colleges and universities with a local NCES/IPEDS autocomplete
 - Apply per-row font-size adjustments with `−`, `+`, and reset controls
@@ -22,6 +24,8 @@ logic.
   reflows around it
 - Choose from five research-backed layouts, then fine-tune typography, spacing,
   and accent color
+- Choose from 30 ranked professional fonts, including bundled open-source web
+  fonts and common ATS-safe system fonts
 - Export selectable-text PDF through the browser print dialog
 - Download high-resolution PNG and configurable-quality JPG
 - See approximate file size and page count before export
