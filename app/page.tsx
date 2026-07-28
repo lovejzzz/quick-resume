@@ -593,6 +593,14 @@ export default function Home() {
     }));
   };
 
+  const loadExample = () => {
+    if (!window.confirm("Replace the current resume content with the default example? Your selected style will stay in place.")) {
+      return;
+    }
+    setActiveText(null);
+    setData(initialData);
+  };
+
   const waitForResumeLayout = () =>
     new Promise<void>((resolve) => {
       window.requestAnimationFrame(() => window.requestAnimationFrame(() => resolve()));
@@ -679,14 +687,24 @@ export default function Home() {
                       <p className="eyebrow">Header</p>
                       <h2>Personal details</h2>
                     </div>
-                    <button
-                      className="clear-all-button"
-                      onClick={clearAllText}
-                      title="Clear text while keeping sections and styling"
-                      type="button"
-                    >
-                      Clear all
-                    </button>
+                    <div className="content-actions">
+                      <button
+                        className="example-button"
+                        onClick={loadExample}
+                        title="Load the default example resume"
+                        type="button"
+                      >
+                        Example
+                      </button>
+                      <button
+                        className="clear-all-button"
+                        onClick={clearAllText}
+                        title="Clear text while keeping sections and styling"
+                        type="button"
+                      >
+                        Clear all
+                      </button>
+                    </div>
                   </div>
                   <div className="field-grid two">
                     <label className="field">
@@ -1126,11 +1144,7 @@ export default function Home() {
           }}
         >
           <div className="preview-toolbar no-print">
-            <div>
-              <span className="status-pill">Click text to edit</span>
-              <span>{pageCount} {pageCount === 1 ? "page" : "pages"}</span>
-            </div>
-            <button onClick={() => setActiveTab("export")} type="button">Export</button>
+            <span>{pageCount} {pageCount === 1 ? "page" : "pages"}</span>
           </div>
 
           <div className="paper-wrap">
@@ -1370,7 +1384,7 @@ export default function Home() {
       </div>
 
       <details className="version-widget no-print">
-        <summary aria-label="Open the Quicky Resume version 0.2.2 changelog">v0.2.2</summary>
+        <summary aria-label="Open the Quicky Resume version 0.2.3 changelog">v0.2.3</summary>
         <aside className="changelog-card" aria-label="Quicky Resume changelog">
           <div className="changelog-heading">
             <div>
@@ -1379,6 +1393,16 @@ export default function Home() {
             </div>
             <span>Latest</span>
           </div>
+          <section className="changelog-release">
+            <div>
+              <strong>v0.2.3</strong>
+              <time dateTime="2026-07-28">Jul 28, 2026</time>
+            </div>
+            <ul>
+              <li>Default example action added to Content</li>
+              <li>Simplified preview toolbar</li>
+            </ul>
+          </section>
           <section className="changelog-release">
             <div>
               <strong>v0.2.2</strong>

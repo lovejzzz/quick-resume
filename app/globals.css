@@ -437,16 +437,31 @@ button {
   letter-spacing: -0.025em;
 }
 
+.content-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.example-button,
 .clear-all-button {
   padding: 7px 10px;
   border: 1px solid #d7dddb;
   border-radius: 8px;
-  color: #81716f;
+  color: #687673;
   background: #f7f9f8;
   cursor: pointer;
   font-size: 10px;
   font-weight: 720;
   transition: 140ms ease;
+}
+
+.example-button:hover,
+.example-button:focus-visible {
+  border-color: #afc9c4;
+  color: #2e625d;
+  background: #edf5f3;
+  outline: none;
 }
 
 .clear-all-button:hover,
@@ -1303,35 +1318,9 @@ button {
   margin: 0 auto 13px;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   color: #6c7875;
   font-size: 11px;
-}
-
-.preview-toolbar > div {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-}
-
-.status-pill {
-  padding: 6px 9px;
-  border: 1px solid #cbd6d3;
-  border-radius: 999px;
-  color: #316a65;
-  background: rgba(255, 255, 255, 0.66);
-  font-weight: 720;
-}
-
-.preview-toolbar button {
-  height: 31px;
-  padding: 0 14px;
-  border: 1px solid #cbd5d2;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.7);
-  cursor: pointer;
-  font-size: 11px;
-  font-weight: 700;
 }
 
 .paper-wrap {
