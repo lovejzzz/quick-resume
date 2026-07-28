@@ -48,6 +48,7 @@ type ResumeStyle = {
   font: "modern" | "classic" | "humanist";
   density: "comfortable" | "compact";
   fitLevel: number;
+  fontAdjustments: Record<string, number>;
   showPhoto: boolean;
 };
 
@@ -233,6 +234,7 @@ const initialStyle: ResumeStyle = {
   font: "modern",
   density: "comfortable",
   fitLevel: 0,
+  fontAdjustments: {},
   showPhoto: false,
 };
 
@@ -280,8 +282,12 @@ function safeFilename(name: string) {
 type InlineEditProps = {
   as?: ElementType;
   className?: string;
+  editId: string;
+  fontAdjustment: number;
+  fontBase: string;
   label: string;
   multiline?: boolean;
+  onActivate: (editId: string, label: string, element: HTMLElement) => void;
   onCommit: (value: string) => void;
   placeholder?: string;
   value: string;
@@ -290,8 +296,12 @@ type InlineEditProps = {
 function InlineEdit({
   as: Tag = "span",
   className,
+  editId,
+  fontAdjustment,
+  fontBase,
   label,
   multiline = false,
+  onActivate,
   onCommit,
   placeholder = "",
   value,
@@ -342,12 +352,14 @@ function InlineEdit({
       data-inline-edit=""
       data-placeholder={placeholder}
       onBlur={finishEdit}
-      onFocus={() => {
+      onFocus={(event: React.FocusEvent<HTMLElement>) => {
         isEditing.current = true;
+        onActivate(editId, label, event.currentTarget);
       }}
       onKeyDown={handleKeyDown}
       ref={elementRef}
       spellCheck
+      style={{ fontSize: `calc(${fontBase} + ${fontAdjustment}px)` }}
       suppressContentEditableWarning
       tabIndex={0}
       title="Click to edit"
@@ -367,6 +379,7 @@ export default function Home() {
   const [exporting, setExporting] = useState(false);
   const [autoFitting, setAutoFitting] = useState(false);
   const [draggedSection, setDraggedSection] = useState<string | null>(null);
+  const [activeText, setActiveText] = useState<{ id: string; label: string; top: number } | null>(null);
   const [pageCount, setPageCount] = useState(1);
   const resumeRef = useRef<HTMLDivElement>(null);
   const hydrated = useRef(false);
@@ -462,6 +475,8 @@ export default function Home() {
       "--entry-subtitle-size": `${mix(11, 9.8, typePhase).toFixed(1)}px`,
       "--entry-date-size": `${mix(10, 9, typePhase).toFixed(1)}px`,
       "--entry-text-size": `${mix(10.5, 9.4, typePhase).toFixed(1)}px`,
+      "--entry-link-size": `${mix(9.5, 8.8, typePhase).toFixed(1)}px`,
+      "--skill-text-size": `${mix(10, 9.1, typePhase).toFixed(1)}px`,
       "--skill-label-width": `${mix(95, 76, detailPhase).toFixed(1)}px`,
       "--skill-gap-y": `${mix(7, 4, spacePhase).toFixed(1)}px`,
       "--skill-gap-x": `${mix(20, 13, detailPhase).toFixed(1)}px`,
@@ -470,6 +485,39 @@ export default function Home() {
 
   const updateContact = (key: keyof Omit<ResumeData, "sections">, value: string | boolean) => {
     setData((current) => ({ ...current, [key]: value }));
+  };
+
+  const activateInlineText = (id: string, label: string, element: HTMLElement) => {
+    const paper = resumeRef.current;
+    if (!paper) return;
+    const paperBox = paper.getBoundingClientRect();
+    const elementBox = element.getBoundingClientRect();
+    setActiveText({
+      id,
+      label,
+      top: elementBox.top - paperBox.top + elementBox.height / 2,
+    });
+  };
+
+  const inlineFontProps = (id: string, fontBase: string) => ({
+    editId: id,
+    fontAdjustment: style.fontAdjustments[id] || 0,
+    fontBase,
+    onActivate: activateInlineText,
+  });
+
+  const adjustActiveFont = (amount: number | "reset") => {
+    if (!activeText) return;
+    setStyle((current) => {
+      const fontAdjustments = { ...current.fontAdjustments };
+      if (amount === "reset") {
+        delete fontAdjustments[activeText.id];
+      } else {
+        const currentValue = fontAdjustments[activeText.id] || 0;
+        fontAdjustments[activeText.id] = Math.max(-4, Math.min(8, currentValue + amount));
+      }
+      return { ...current, fontAdjustments };
+    });
   };
 
   const updateSection = (sectionId: string, patch: Partial<ResumeSection>) => {
@@ -1057,7 +1105,13 @@ export default function Home() {
           </div>
         </aside>
 
-        <section className="preview-stage">
+        <section
+          className="preview-stage"
+          onPointerDown={(event) => {
+            const target = event.target as HTMLElement;
+            if (!target.closest("[data-inline-edit], [data-font-tools]")) setActiveText(null);
+          }}
+        >
           <div className="preview-toolbar no-print">
             <div>
               <span className="status-pill">Click text to edit</span>
@@ -1075,6 +1129,7 @@ export default function Home() {
               <header className={style.showPhoto && data.photo ? "resume-header with-photo" : "resume-header"}>
                 <div>
                   <InlineEdit
+                    {...inlineFontProps("contact:name", "var(--name-size, 34px)")}
                     as="h2"
                     label="Name"
                     onCommit={(value) => updateContact("name", value)}
@@ -1082,6 +1137,7 @@ export default function Home() {
                     value={data.name}
                   />
                   <InlineEdit
+                    {...inlineFontProps("contact:headline", "var(--headline-size, 13px)")}
                     as="p"
                     className="resume-headline"
                     label="Professional headline"
@@ -1101,6 +1157,7 @@ export default function Home() {
                       .filter(([, item]) => Boolean(item))
                       .map(([key, item]) => (
                         <InlineEdit
+                          {...inlineFontProps(`contact:${key}`, "var(--contact-size, 10px)")}
                           as="span"
                           key={key}
                           label={key === "secondaryLink" ? "Additional link" : key}
@@ -1117,6 +1174,7 @@ export default function Home() {
                 {data.sections.map((section) => (
                   <section className={`resume-section kind-${section.kind}`} key={section.id}>
                     <InlineEdit
+                      {...inlineFontProps(`section:${section.id}:title`, "var(--section-title-size, 11px)")}
                       as="h3"
                       label={`${section.title} section title`}
                       onCommit={(value) => updateSection(section.id, { title: value })}
@@ -1126,6 +1184,10 @@ export default function Home() {
 
                     {section.kind === "summary" ? (
                       <InlineEdit
+                        {...inlineFontProps(
+                          `entry:${section.entries[0]?.id || section.id}:details`,
+                          "var(--paper-font-size, 12px)",
+                        )}
                         as="p"
                         className="summary-text"
                         label="Professional summary"
@@ -1142,6 +1204,7 @@ export default function Home() {
                         {section.entries.map((entry) => (
                           <div className="skill-row" key={entry.id}>
                             <InlineEdit
+                              {...inlineFontProps(`entry:${entry.id}:heading`, "var(--skill-text-size, 10px)")}
                               as="strong"
                               label="Skill category"
                               onCommit={(value) => updateEntry(section.id, entry.id, { heading: value })}
@@ -1149,6 +1212,7 @@ export default function Home() {
                               value={entry.heading}
                             />
                             <InlineEdit
+                              {...inlineFontProps(`entry:${entry.id}:details`, "var(--skill-text-size, 10px)")}
                               as="span"
                               label={`${entry.heading || "Skill"} details`}
                               onCommit={(value) => updateEntry(section.id, entry.id, { details: value })}
@@ -1165,6 +1229,7 @@ export default function Home() {
                             <div className="resume-entry-heading">
                               <div>
                                 <InlineEdit
+                                  {...inlineFontProps(`entry:${entry.id}:heading`, "var(--entry-title-size, 13px)")}
                                   as="h4"
                                   label={`${section.title} item title`}
                                   onCommit={(value) => updateEntry(section.id, entry.id, { heading: value })}
@@ -1173,6 +1238,10 @@ export default function Home() {
                                 />
                                 {entry.subheading && (
                                   <InlineEdit
+                                    {...inlineFontProps(
+                                      `entry:${entry.id}:subheading`,
+                                      "var(--entry-subtitle-size, 11px)",
+                                    )}
                                     as="p"
                                     label={`${entry.heading} supporting information`}
                                     onCommit={(value) => updateEntry(section.id, entry.id, { subheading: value })}
@@ -1182,6 +1251,7 @@ export default function Home() {
                               </div>
                               {entry.date && (
                                 <InlineEdit
+                                  {...inlineFontProps(`entry:${entry.id}:date`, "var(--entry-date-size, 10px)")}
                                   as="time"
                                   label={`${entry.heading} date`}
                                   onCommit={(value) => updateEntry(section.id, entry.id, { date: value })}
@@ -1191,6 +1261,7 @@ export default function Home() {
                             </div>
                             {entry.link && (
                               <InlineEdit
+                                {...inlineFontProps(`entry:${entry.id}:link`, "var(--entry-link-size, 9.5px)")}
                                 as="p"
                                 className="entry-link"
                                 label={`${entry.heading} link`}
@@ -1200,6 +1271,7 @@ export default function Home() {
                             )}
                             {entry.details && (
                               <InlineEdit
+                                {...inlineFontProps(`entry:${entry.id}:details`, "var(--entry-text-size, 10.5px)")}
                                 as="p"
                                 className="entry-details"
                                 label={`${entry.heading} details`}
@@ -1213,6 +1285,10 @@ export default function Home() {
                                 {entry.bullets.map((bullet, index) =>
                                   bullet.trim() ? (
                                     <InlineEdit
+                                      {...inlineFontProps(
+                                        `entry:${entry.id}:bullet:${index}`,
+                                        "var(--entry-text-size, 10.5px)",
+                                      )}
                                       as="li"
                                       key={index}
                                       label={`${entry.heading} bullet ${index + 1}`}
@@ -1231,6 +1307,43 @@ export default function Home() {
                   </section>
                 ))}
               </div>
+              {activeText && (
+                <div
+                  aria-label={`Font size controls for ${activeText.label}`}
+                  className="inline-font-tools no-print"
+                  data-font-tools=""
+                  data-html2canvas-ignore="true"
+                  onMouseDown={(event) => event.preventDefault()}
+                  role="group"
+                  style={{ top: `${activeText.top}px` }}
+                >
+                  <button
+                    aria-label={`Decrease font size for ${activeText.label}`}
+                    onClick={() => adjustActiveFont(-1)}
+                    title="Decrease font size"
+                    type="button"
+                  >
+                    −
+                  </button>
+                  <button
+                    aria-label={`Increase font size for ${activeText.label}`}
+                    onClick={() => adjustActiveFont(1)}
+                    title="Increase font size"
+                    type="button"
+                  >
+                    +
+                  </button>
+                  <button
+                    aria-label={`Reset font size for ${activeText.label}`}
+                    disabled={!style.fontAdjustments[activeText.id]}
+                    onClick={() => adjustActiveFont("reset")}
+                    title="Reset font size"
+                    type="button"
+                  >
+                    ↺
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </section>

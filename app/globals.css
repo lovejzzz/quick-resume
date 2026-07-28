@@ -791,6 +791,7 @@ button {
   font-family: Arial, Helvetica, sans-serif;
   font-size: var(--paper-font-size, 12px);
   line-height: var(--paper-line-height, 1.46);
+  position: relative;
   transition: padding 120ms ease, font-size 120ms ease, line-height 120ms ease;
 }
 
@@ -826,6 +827,47 @@ button {
 [data-inline-edit]:focus {
   background: color-mix(in srgb, var(--resume-accent) 10%, white);
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--resume-accent) 28%, transparent);
+}
+
+.inline-font-tools {
+  position: absolute;
+  right: 14px;
+  z-index: 8;
+  width: 29px;
+  padding: 3px;
+  display: grid;
+  gap: 2px;
+  border: 1px solid #c9d6d3;
+  border-radius: 9px;
+  background: rgba(250, 253, 252, 0.96);
+  box-shadow: 0 7px 20px rgba(27, 49, 46, 0.16);
+  transform: translateY(-50%);
+  backdrop-filter: blur(8px);
+}
+
+.inline-font-tools button {
+  width: 21px;
+  height: 21px;
+  padding: 0;
+  border: 0;
+  border-radius: 5px;
+  color: #2d615d;
+  background: transparent;
+  cursor: pointer;
+  font-family: Arial, sans-serif;
+  font-size: 13px;
+  font-weight: 760;
+  line-height: 1;
+}
+
+.inline-font-tools button:hover {
+  background: #e4efed;
+}
+
+.inline-font-tools button:disabled {
+  color: #aab4b1;
+  cursor: default;
+  background: transparent;
 }
 
 .resume-header {
@@ -964,7 +1006,7 @@ button {
 .entry-link {
   margin: 3px 0 0;
   color: var(--resume-accent);
-  font-size: 9.5px;
+  font-size: var(--entry-link-size, 9.5px);
   font-weight: 650;
 }
 
@@ -998,7 +1040,7 @@ button {
   gap: 8px;
   align-items: baseline;
   color: #3e4947;
-  font-size: 10px;
+  font-size: var(--skill-text-size, 10px);
 }
 
 .skill-row strong {
