@@ -709,13 +709,13 @@ button {
 }
 
 .content-sidebar button > span {
-  color: #9ba6a3;
+  color: #5f6b68;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 7px;
 }
 
 .content-sidebar button.active > span {
-  color: #3c7772;
+  color: #2f6560;
 }
 
 .content-nav-sections {
@@ -1589,7 +1589,7 @@ button {
   border: 0;
   border-radius: 8px;
   background: transparent;
-  color: #697572;
+  color: #56625f;
   cursor: pointer;
   font-size: 11px;
   font-weight: 700;
@@ -1667,7 +1667,7 @@ button {
 }
 
 .photo-control-heading small {
-  color: #7c8885;
+  color: #5f6b68;
   font-size: 10px;
 }
 
@@ -1688,7 +1688,7 @@ button {
 .photo-placeholder {
   display: grid;
   place-items: center;
-  color: #81908c;
+  color: #56625f;
   font-size: 9px;
   font-weight: 720;
   text-transform: uppercase;
@@ -1943,7 +1943,7 @@ button {
 }
 
 .format-card span {
-  color: #7f8987;
+  color: #5f6b68;
   font-size: 9px;
 }
 
@@ -1998,7 +1998,7 @@ button {
 
 .export-note,
 .fine-print {
-  color: #6f7a77;
+  color: #55605d;
   font-size: 10px;
   line-height: 1.5;
 }
@@ -3581,7 +3581,8 @@ body {
 }
 
 .page-size-segmented small {
-  color: var(--muted);
+  /* --muted (#6d7b78) falls just under 4.5:1 on the segmented track. */
+  color: #56625f;
   font-size: 9.5px;
 }
 

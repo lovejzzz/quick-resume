@@ -132,7 +132,7 @@ export function ReviewPanel({ data }: ReviewPanelProps) {
               : "Add some experience bullets and they will be checked here."}
           </p>
         ) : (
-          <div className="coach-findings">
+          <div aria-label="Writing suggestions" className="coach-findings" role="region" tabIndex={0}>
             {groupedFindings.map(([heading, findings]) => (
               <div className="coach-group" key={heading}>
                 <h3>{heading}</h3>

@@ -108,7 +108,9 @@ function InlineEditComponent({
   return (
     <Tag
       aria-label={label}
-      aria-multiline={multiline || undefined}
+      // aria-multiline is only valid on a textbox, and bullets keep their
+      // native listitem role (see the role note below).
+      aria-multiline={multiline && Tag !== "li" ? true : undefined}
       className={className}
       contentEditable="plaintext-only"
       data-inline-edit=""
@@ -127,7 +129,11 @@ function InlineEditComponent({
       onKeyDown={handleKeyDown}
       onPaste={handlePaste}
       ref={elementRef}
-      role="textbox"
+      // A bullet must stay a listitem. Overriding it with `textbox` removes the
+      // element from its list in the accessibility tree, so the surrounding
+      // <ul> reads as an empty list. `contenteditable` already conveys
+      // editability for these.
+      role={Tag === "li" ? undefined : "textbox"}
       spellCheck
       style={{ fontSize: `calc(${fontBase} + ${fontAdjustment}px)` }}
       suppressContentEditableWarning
