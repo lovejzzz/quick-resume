@@ -1,0 +1,25 @@
+KWAME ASANTE
+Financial Analyst
+kwame.asante@example.com | 646-555-0188 | New York, NY
+
+PROFESSIONAL SUMMARY
+Financial analyst with six years in equity research covering industrials.
+
+WORK EXPERIENCE
+Senior Analyst, Meridian Capital                        2021 - Present
+- Built the discounted cash flow model used across a $900M portfolio
+- Published 40 research notes with a 71% directional accuracy rate
+
+Analyst, Fairmont Advisory                              2018 - 2021
+- Supported diligence on 12 transactions totalling $2.3B
+
+EDUCATION
+New York University                                     2014 - 2018
+B.S. Finance
+
+CERTIFICATIONS
+CFA Level II Candidate
+
+SKILLS
+Modeling: Excel, VBA, Python
+Data: Bloomberg, FactSet, Capital IQ

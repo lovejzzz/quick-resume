@@ -1,21 +1,20 @@
 import type { NextConfig } from "next";
 
-const isGitHubPages = process.env.GITHUB_PAGES === "true";
-const repositoryName = process.env.GITHUB_REPOSITORY?.split("/")[1] ?? "quick-resume";
-const pagesBasePath =
-  process.env.GITHUB_PAGES_BASE_PATH ?? `/${repositoryName}`;
+/**
+ * Quicky Resume is a fully static client-side app, so there is a single build
+ * path: `next build` emits a static export in `out/`.
+ *
+ * `NEXT_PUBLIC_BASE_PATH` lets the same build serve from a subdirectory. It is
+ * read by `app/lib/asset-path.ts` too, so runtime `fetch` calls and the service
+ * worker scope stay in step with `basePath`.
+ */
+const basePath = (process.env.NEXT_PUBLIC_BASE_PATH ?? "").replace(/\/$/, "");
 
 const nextConfig: NextConfig = {
-  ...(isGitHubPages
-    ? {
-        assetPrefix: pagesBasePath,
-        basePath: pagesBasePath,
-        images: { unoptimized: true },
-        output: "export" as const,
-        trailingSlash: true,
-        typescript: { tsconfigPath: "tsconfig.pages.json" },
-      }
-    : {}),
+  output: "export",
+  trailingSlash: true,
+  images: { unoptimized: true },
+  ...(basePath ? { basePath, assetPrefix: basePath } : {}),
 };
 
 export default nextConfig;

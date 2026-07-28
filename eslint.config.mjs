@@ -12,6 +12,10 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Vendored third-party runtime, copied in by scripts/copy-ocr-assets.mjs.
+    "public/ocr/**",
+    "test-results/**",
+    "playwright-report/**",
   ]),
 ]);
 
