@@ -11,224 +11,14 @@ import {
   useState,
 } from "react";
 import html2canvas from "html2canvas";
-
-type SectionKind = "summary" | "experience" | "projects" | "education" | "skills" | "awards" | "custom";
-
-type ResumeEntry = {
-  id: string;
-  heading: string;
-  subheading: string;
-  date: string;
-  details: string;
-  bullets: string[];
-  link?: string;
-};
-
-type ResumeSection = {
-  id: string;
-  kind: SectionKind;
-  title: string;
-  entries: ResumeEntry[];
-};
-
-type ResumeData = {
-  name: string;
-  headline: string;
-  email: string;
-  phone: string;
-  location: string;
-  portfolio: string;
-  secondaryLink: string;
-  photo: string;
-  sections: ResumeSection[];
-};
-
-type ResumeStyle = {
-  accent: string;
-  font: "modern" | "classic" | "humanist";
-  density: "comfortable" | "compact";
-  fitLevel: number;
-  fontAdjustments: Record<string, number>;
-  showPhoto: boolean;
-};
+import Image from "next/image";
+import { tianXingExample } from "./examples/tian-xing";
+import type { ResumeData, ResumeEntry, ResumeSection, ResumeStyle, SectionKind } from "./resume-model";
 
 const makeId = () => `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 const PRINT_SAFE_HEIGHT = 1038;
 
-const initialData: ResumeData = {
-  name: "Tian Xing",
-  headline: "Educational Technologist | Learning Experience Designer",
-  email: "tx845@nyu.edu",
-  phone: "(551) 414-5977",
-  location: "",
-  portfolio: "xingpicture.myportfolio.com",
-  secondaryLink: "@xing_tian_lifeitself",
-  photo: "",
-  sections: [
-    {
-      id: "summary",
-      kind: "summary",
-      title: "Profile",
-      entries: [
-        {
-          id: "summary-1",
-          heading: "",
-          subheading: "",
-          date: "",
-          details:
-            "Educational technologist and learning experience designer with interdisciplinary expertise in educational game design, AI-enabled workflows, multimedia production, and music education. Experienced in LMS administration, instructional support, automation, and the design of interactive learning tools.",
-          bullets: [],
-        },
-      ],
-    },
-    {
-      id: "experience",
-      kind: "experience",
-      title: "Experience",
-      entries: [
-        {
-          id: "experience-1",
-          heading: "Educational Technologist",
-          subheading: "NYU Silver School",
-          date: "2026–Present",
-          details: "",
-          bullets: [
-            "Deliver instructional support and administer learning-management systems.",
-            "Implement AI-enabled tools and workflow automations for educational use cases.",
-          ],
-        },
-        {
-          id: "experience-2",
-          heading: "Music Tutor",
-          subheading: "Berklee College of Music",
-          date: "2021–2024",
-          details: "",
-          bullets: [
-            "Provided individualized instruction in harmony, arranging, and piano improvisation.",
-            "Used Logic Pro, MuseScore, and Finale to support music learning and composition.",
-          ],
-        },
-      ],
-    },
-    {
-      id: "projects",
-      kind: "projects",
-      title: "Selected Projects",
-      entries: [
-        {
-          id: "project-1",
-          heading: "EduTool.dev",
-          subheading: "Founder & Developer",
-          date: "",
-          details: "Founded and developed an educational technology website.",
-          bullets: [],
-          link: "edutool.dev",
-        },
-        {
-          id: "project-2",
-          heading: "Surge Method",
-          subheading: "iOS App Designer & Developer",
-          date: "",
-          details: "Designed and developed an iOS application focused on an original learning method.",
-          bullets: [],
-        },
-      ],
-    },
-    {
-      id: "education",
-      kind: "education",
-      title: "Education",
-      entries: [
-        {
-          id: "education-1",
-          heading: "New York University",
-          subheading: "Master of Science, Games for Learning",
-          date: "2024–2026",
-          details: "",
-          bullets: [],
-        },
-        {
-          id: "education-2",
-          heading: "Berklee College of Music",
-          subheading: "Bachelor of Music, Jazz Composition",
-          date: "2021–2024",
-          details: "Scholarship recipient",
-          bullets: [],
-        },
-        {
-          id: "education-3",
-          heading: "City University of New York",
-          subheading: "Associate in Science, Music Studies",
-          date: "2018–2020",
-          details: "Pianist, CUNY Jazz Ensemble",
-          bullets: [],
-        },
-      ],
-    },
-    {
-      id: "skills",
-      kind: "skills",
-      title: "Skills",
-      entries: [
-        {
-          id: "skill-1",
-          heading: "Learning & AI",
-          subheading: "",
-          date: "",
-          details: "Instructional support, LMS administration, AI implementation, workflow automation, Dify",
-          bullets: [],
-        },
-        {
-          id: "skill-2",
-          heading: "Design & Media",
-          subheading: "",
-          date: "",
-          details: "Figma, DaVinci Resolve, Final Cut Pro, Photoshop",
-          bullets: [],
-        },
-        {
-          id: "skill-3",
-          heading: "Development",
-          subheading: "",
-          date: "",
-          details: "JavaScript, Python",
-          bullets: [],
-        },
-        {
-          id: "skill-4",
-          heading: "Music",
-          subheading: "",
-          date: "",
-          details: "Logic Pro, MuseScore, Finale",
-          bullets: [],
-        },
-      ],
-    },
-    {
-      id: "awards",
-      kind: "awards",
-      title: "Awards",
-      entries: [
-        {
-          id: "award-1",
-          heading: "NYU Creative Excellence Award",
-          subheading: "",
-          date: "2026",
-          details: "",
-          bullets: [],
-        },
-        {
-          id: "award-2",
-          heading: "IPA Photography Bronze Award",
-          subheading: "",
-          date: "2017",
-          details: "",
-          bullets: [],
-        },
-      ],
-    },
-  ],
-};
+const initialData: ResumeData = tianXingExample;
 
 const initialStyle: ResumeStyle = {
   accent: "#28605d",
@@ -288,7 +78,7 @@ type InlineEditProps = {
   fontBase: string;
   label: string;
   multiline?: boolean;
-  onActivate: (editId: string, label: string, element: HTMLElement) => void;
+  onActivate: (editId: string, label: string, top: number) => void;
   onCommit: (value: string) => void;
   placeholder?: string;
   value: string;
@@ -355,7 +145,12 @@ function InlineEdit({
       onBlur={finishEdit}
       onFocus={(event: React.FocusEvent<HTMLElement>) => {
         isEditing.current = true;
-        onActivate(editId, label, event.currentTarget);
+        const paper = event.currentTarget.closest(".resume-paper");
+        if (paper) {
+          const paperBox = paper.getBoundingClientRect();
+          const elementBox = event.currentTarget.getBoundingClientRect();
+          onActivate(editId, label, elementBox.top - paperBox.top + elementBox.height / 2);
+        }
       }}
       onKeyDown={handleKeyDown}
       ref={elementRef}
@@ -397,22 +192,33 @@ export default function Home() {
   };
 
   useEffect(() => {
+    let cancelled = false;
+    let storedData: ResumeData | null = null;
+    let storedStyle: ResumeStyle | null = null;
     try {
-      const stored = window.localStorage.getItem("tian-resume-studio");
+      const stored = window.localStorage.getItem("quick-resume");
       if (stored) {
         const parsed = JSON.parse(stored);
-        if (parsed.data) setData(parsed.data);
-        if (parsed.style) setStyle({ ...initialStyle, ...parsed.style });
+        if (parsed.data) storedData = parsed.data;
+        if (parsed.style) storedStyle = { ...initialStyle, ...parsed.style };
       }
     } catch {
       // Keep the safe starter data if local storage is unavailable or invalid.
     }
-    hydrated.current = true;
+    window.queueMicrotask(() => {
+      if (cancelled) return;
+      if (storedData) setData(storedData);
+      if (storedStyle) setStyle(storedStyle);
+      hydrated.current = true;
+    });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
     if (!hydrated.current) return;
-    window.localStorage.setItem("tian-resume-studio", JSON.stringify({ data, style }));
+    window.localStorage.setItem("quick-resume", JSON.stringify({ data, style }));
   }, [data, style]);
 
   useEffect(() => {
@@ -500,16 +306,8 @@ export default function Home() {
     setData((current) => ({ ...current, [key]: value }));
   };
 
-  const activateInlineText = (id: string, label: string, element: HTMLElement) => {
-    const paper = resumeRef.current;
-    if (!paper) return;
-    const paperBox = paper.getBoundingClientRect();
-    const elementBox = element.getBoundingClientRect();
-    setActiveText({
-      id,
-      label,
-      top: elementBox.top - paperBox.top + elementBox.height / 2,
-    });
+  const activateInlineText = (id: string, label: string, top: number) => {
+    setActiveText({ id, label, top });
   };
 
   const inlineFontProps = (id: string, fontBase: string) => ({
@@ -713,10 +511,10 @@ export default function Home() {
     <main className="studio-shell">
       <header className="app-header no-print">
         <div className="brand-lockup">
-          <div className="brand-mark" aria-hidden="true">TX</div>
+          <div className="brand-mark" aria-hidden="true">QR</div>
           <div>
             <p className="eyebrow">Personal workspace</p>
-            <h1>Resume Studio</h1>
+            <h1>Quick Resume</h1>
           </div>
         </div>
         <div className="save-state">
@@ -1186,7 +984,15 @@ export default function Home() {
                       ))}
                   </div>
                 </div>
-                {style.showPhoto && data.photo && <img alt={`${data.name} portrait`} src={data.photo} />}
+                {style.showPhoto && data.photo && (
+                  <Image
+                    alt={`${data.name} portrait`}
+                    height={82}
+                    src={data.photo}
+                    unoptimized
+                    width={82}
+                  />
+                )}
               </header>
 
               <div className="resume-body">
