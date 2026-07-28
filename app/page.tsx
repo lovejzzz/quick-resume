@@ -78,6 +78,10 @@ function safeFilename(name: string) {
   return `${name.trim().replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "") || "resume"}-resume`;
 }
 
+function serializeWorkspace(data: ResumeData, style: ResumeStyle) {
+  return JSON.stringify({ data, style });
+}
+
 type InlineEditProps = {
   as?: ElementType;
   className?: string;
@@ -186,8 +190,11 @@ export default function Home() {
   const [draggedSection, setDraggedSection] = useState<string | null>(null);
   const [activeText, setActiveText] = useState<{ id: string; label: string; top: number } | null>(null);
   const [pageCount, setPageCount] = useState(1);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [saveError, setSaveError] = useState("");
   const resumeRef = useRef<HTMLDivElement>(null);
   const hydrated = useRef(false);
+  const lastSavedSnapshot = useRef(serializeWorkspace(initialData, initialStyle));
 
   const getResumeContentHeight = () => {
     const paper = resumeRef.current;
@@ -202,22 +209,24 @@ export default function Home() {
 
   useEffect(() => {
     let cancelled = false;
-    let storedData: ResumeData | null = null;
-    let storedStyle: ResumeStyle | null = null;
+    let loadedData: ResumeData = initialData;
+    let loadedStyle: ResumeStyle = initialStyle;
     try {
       const stored = window.localStorage.getItem("quick-resume");
       if (stored) {
         const parsed = JSON.parse(stored);
-        if (parsed.data) storedData = parsed.data;
-        if (parsed.style) storedStyle = { ...initialStyle, ...parsed.style };
+        if (parsed.data) loadedData = parsed.data;
+        if (parsed.style) loadedStyle = { ...initialStyle, ...parsed.style };
       }
     } catch {
       // Keep the safe starter data if local storage is unavailable or invalid.
     }
     window.queueMicrotask(() => {
       if (cancelled) return;
-      if (storedData) setData(storedData);
-      if (storedStyle) setStyle(storedStyle);
+      lastSavedSnapshot.current = serializeWorkspace(loadedData, loadedStyle);
+      setData(loadedData);
+      setStyle(loadedStyle);
+      setHasUnsavedChanges(false);
       hydrated.current = true;
     });
     return () => {
@@ -227,8 +236,20 @@ export default function Home() {
 
   useEffect(() => {
     if (!hydrated.current) return;
-    window.localStorage.setItem("quick-resume", JSON.stringify({ data, style }));
+    const changed = serializeWorkspace(data, style) !== lastSavedSnapshot.current;
+    setHasUnsavedChanges(changed);
+    if (changed) setSaveError("");
   }, [data, style]);
+
+  useEffect(() => {
+    if (!hasUnsavedChanges) return;
+    const warnBeforeLeaving = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warnBeforeLeaving);
+    return () => window.removeEventListener("beforeunload", warnBeforeLeaving);
+  }, [hasUnsavedChanges]);
 
   useEffect(() => {
     const updatePages = () => {
@@ -533,6 +554,18 @@ export default function Home() {
     setStyle(initialStyle);
   };
 
+  const saveResume = () => {
+    const snapshot = serializeWorkspace(data, style);
+    try {
+      window.localStorage.setItem("quick-resume", snapshot);
+      lastSavedSnapshot.current = snapshot;
+      setHasUnsavedChanges(false);
+      setSaveError("");
+    } catch {
+      setSaveError("Saving failed on this device. Please try again.");
+    }
+  };
+
   const clearAllText = () => {
     if (!window.confirm("Clear all resume text? Your sections, styling, and photo will stay in place.")) return;
     setActiveText(null);
@@ -609,10 +642,17 @@ export default function Home() {
             </div>
           </div>
         </div>
-        <div className="save-state">
+        <button
+          aria-live="polite"
+          className={`save-button${hasUnsavedChanges ? " unsaved" : ""}${saveError ? " error" : ""}`}
+          disabled={!hasUnsavedChanges}
+          onClick={saveResume}
+          title={saveError || (hasUnsavedChanges ? "Save changes on this device" : "All changes are saved")}
+          type="button"
+        >
           <span className="save-dot" aria-hidden="true" />
-          Saved on this device
-        </div>
+          <span>{saveError ? "Try save again" : hasUnsavedChanges ? "Save changes" : "Saved"}</span>
+        </button>
       </header>
 
       <div className="workspace">
@@ -1330,7 +1370,7 @@ export default function Home() {
       </div>
 
       <details className="version-widget no-print">
-        <summary aria-label="Open the Quicky Resume version 0.2.1 changelog">v0.2.1</summary>
+        <summary aria-label="Open the Quicky Resume version 0.2.2 changelog">v0.2.2</summary>
         <aside className="changelog-card" aria-label="Quicky Resume changelog">
           <div className="changelog-heading">
             <div>
@@ -1339,6 +1379,16 @@ export default function Home() {
             </div>
             <span>Latest</span>
           </div>
+          <section className="changelog-release">
+            <div>
+              <strong>v0.2.2</strong>
+              <time dateTime="2026-07-28">Jul 28, 2026</time>
+            </div>
+            <ul>
+              <li>Manual save button replaces automatic saving</li>
+              <li>Unsaved-change status and leave-page warning</li>
+            </ul>
+          </section>
           <section className="changelog-release">
             <div>
               <strong>v0.2.1</strong>

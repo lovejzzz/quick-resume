@@ -176,13 +176,43 @@ button {
   text-transform: uppercase;
 }
 
-.save-state {
+.save-button {
+  padding: 8px 11px;
+  border: 1px solid transparent;
+  border-radius: 10px;
   display: flex;
   align-items: center;
   gap: 8px;
   color: #65716f;
+  background: transparent;
+  cursor: pointer;
   font-size: 12px;
   font-weight: 600;
+  transition: 150ms ease;
+}
+
+.save-button:disabled {
+  cursor: default;
+}
+
+.save-button.unsaved {
+  border-color: #e6d7ad;
+  color: #6f5b24;
+  background: #fff8e8;
+  box-shadow: 0 4px 14px rgba(113, 91, 33, 0.08);
+}
+
+.save-button.unsaved:hover,
+.save-button.unsaved:focus-visible {
+  border-color: #d5bd79;
+  background: #fff4d8;
+  outline: none;
+}
+
+.save-button.error {
+  border-color: #e1b9b4;
+  color: #854e47;
+  background: #fcf0ee;
 }
 
 .save-dot {
@@ -191,6 +221,16 @@ button {
   border-radius: 50%;
   background: #4ca176;
   box-shadow: 0 0 0 4px rgba(76, 161, 118, 0.12);
+}
+
+.save-button.unsaved .save-dot {
+  background: #d59a32;
+  box-shadow: 0 0 0 4px rgba(213, 154, 50, 0.14);
+}
+
+.save-button.error .save-dot {
+  background: #c86a5d;
+  box-shadow: 0 0 0 4px rgba(200, 106, 93, 0.13);
 }
 
 .version-widget {
@@ -1762,7 +1802,7 @@ button {
     padding: 0 16px;
   }
 
-  .save-state {
+  .save-button {
     font-size: 0;
   }
 

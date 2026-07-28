@@ -32,7 +32,7 @@ test("server-renders Quicky Resume and its example case", async () => {
   assert.match(html, /<title>Quicky Resume<\/title>/i);
   assert.match(html, /Quicky Resume/);
   assert.match(html, /Built by Tian Xing/);
-  assert.match(html, /v0\.2\.1/);
+  assert.match(html, /v0\.2\.2/);
   assert.match(html, /Changelog/);
   assert.match(html, /Tian Xing/);
   assert.match(html, /Educational Technologist/);
@@ -64,7 +64,7 @@ test("keeps the example data and five layouts separate from the editor", async (
   assert.equal((themes.match(/id: "(classic|modern|executive|technical|academic)"/g) ?? []).length, 5);
   assert.match(page, /Research-backed layouts/);
   assert.match(packageJson, /"name": "quicky-resume"/);
-  assert.match(packageJson, /"version": "0\.2\.1"/);
+  assert.match(packageJson, /"version": "0\.2\.2"/);
 });
 
 test("uses an illustrated brand mark and keeps version history out of resume exports", async () => {
@@ -90,6 +90,21 @@ test("clear all removes editable text while preserving resume structure and pres
   assert.match(page, /entries: section\.entries\.map/);
   assert.match(page, /bullets: entry\.bullets\.map\(\(\) => ""\)/);
   assert.match(page, /className="clear-all-button"/);
+});
+
+test("saves only on request and warns before leaving with unsaved changes", async () => {
+  const page = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
+
+  assert.match(page, /const saveResume = \(\) =>/);
+  assert.match(page, /window\.localStorage\.setItem\("quick-resume", snapshot\)/);
+  assert.match(page, /lastSavedSnapshot\.current = snapshot/);
+  assert.match(page, /className=\{`save-button/);
+  assert.match(page, /Save changes/);
+  assert.match(page, /window\.addEventListener\("beforeunload", warnBeforeLeaving\)/);
+  assert.doesNotMatch(
+    page,
+    /window\.localStorage\.setItem\("quick-resume", JSON\.stringify\(\{ data, style \}\)\)/,
+  );
 });
 
 test("opens Style first and keeps fit and photo controls in their intended panels", async () => {
