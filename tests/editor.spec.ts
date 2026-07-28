@@ -29,6 +29,10 @@ test.describe("editor shell", () => {
   test("renders the example resume and its sections", async ({ page }) => {
     await openEditor(page);
     await expect(page.locator(".resume-paper")).toContainText("Tian Xing");
+    await expect(page.locator(".resume-paper")).toContainText("Educational Technologist Intern");
+    await expect(page.locator(".resume-paper")).toContainText(
+      "AI enabled workflows, multimedia production, and music education.",
+    );
     await expect(page.locator(".resume-section")).not.toHaveCount(0);
   });
 

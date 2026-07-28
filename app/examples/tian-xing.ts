@@ -28,7 +28,7 @@ export const tianXingExample: ResumeData = {
           subheading: "",
           date: "",
           details:
-            "Educational technologist and learning experience designer with expertise in educational game design, AI-enabled workflows, multimedia production, and music education. Experienced in LMS administration, instructional support, automation, and the design of interactive learning tools.",
+            "Educational technologist and learning experience designer with expertise in educational game design, AI enabled workflows, multimedia production, and music education.",
           bullets: [],
         },
       ],
@@ -71,7 +71,7 @@ export const tianXingExample: ResumeData = {
       entries: [
         {
           id: "experience-1",
-          heading: "Educational Technologist",
+          heading: "Educational Technologist Intern",
           subheading: "NYU Silver School",
           date: "2026/02-2026/05",
           details: "",
