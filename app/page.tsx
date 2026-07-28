@@ -47,6 +47,7 @@ type ResumeStyle = {
   accent: string;
   font: "modern" | "classic" | "humanist";
   density: "comfortable" | "compact";
+  fitLevel: number;
   showPhoto: boolean;
 };
 
@@ -231,6 +232,7 @@ const initialStyle: ResumeStyle = {
   accent: "#28605d",
   font: "modern",
   density: "comfortable",
+  fitLevel: 0,
   showPhoto: false,
 };
 
@@ -363,6 +365,7 @@ export default function Home() {
   const [exportScale, setExportScale] = useState(2);
   const [jpgQuality, setJpgQuality] = useState(0.9);
   const [exporting, setExporting] = useState(false);
+  const [autoFitting, setAutoFitting] = useState(false);
   const [draggedSection, setDraggedSection] = useState<string | null>(null);
   const [pageCount, setPageCount] = useState(1);
   const resumeRef = useRef<HTMLDivElement>(null);
@@ -374,7 +377,7 @@ export default function Home() {
       if (stored) {
         const parsed = JSON.parse(stored);
         if (parsed.data) setData(parsed.data);
-        if (parsed.style) setStyle(parsed.style);
+        if (parsed.style) setStyle({ ...initialStyle, ...parsed.style });
       }
     } catch {
       // Keep the safe starter data if local storage is unavailable or invalid.
@@ -407,6 +410,63 @@ export default function Home() {
     if (exportFormat === "jpg") return pixels * (0.045 + density * 0.05) * jpgQuality + photoBytes * 0.45;
     return 70000 + textLength * 9 + pageCount * 38000 + photoBytes * 0.25;
   }, [data.photo, exportFormat, exportScale, jpgQuality, pageCount, textLength]);
+
+  const resumeFitVariables = useMemo(() => {
+    const clamp = (value: number) => Math.max(0, Math.min(1, value));
+    const mix = (start: number, end: number, progress: number) => start + (end - start) * progress;
+    const fit = clamp(style.fitLevel / 100);
+
+    // Smart fitting happens in stages: whitespace first, page margins second,
+    // and typography only after the safer layout savings have been used.
+    const spacePhase = clamp(fit / 0.55);
+    const marginPhase = clamp((fit - 0.12) / 0.68);
+    const typePhase = clamp((fit - 0.58) / 0.42);
+    const detailPhase = clamp((fit - 0.28) / 0.72);
+    const compact = style.density === "compact";
+
+    const base = compact
+      ? {
+          bodySpace: 12,
+          entrySpace: 8,
+          fontSize: 11,
+          headerSpace: 14,
+          lineHeight: 1.36,
+          paddingY: 52,
+          sectionSpace: 11,
+        }
+      : {
+          bodySpace: 17,
+          entrySpace: 12,
+          fontSize: 12,
+          headerSpace: 20,
+          lineHeight: 1.46,
+          paddingY: 66,
+          sectionSpace: 17,
+        };
+
+    return {
+      "--paper-pad-y": `${mix(base.paddingY, 38, marginPhase).toFixed(1)}px`,
+      "--paper-pad-x": `${mix(70, 48, marginPhase).toFixed(1)}px`,
+      "--paper-font-size": `${mix(base.fontSize, 10.2, typePhase).toFixed(2)}px`,
+      "--paper-line-height": mix(base.lineHeight, 1.3, typePhase).toFixed(3),
+      "--header-space": `${mix(base.headerSpace, 10, spacePhase).toFixed(1)}px`,
+      "--body-space": `${mix(base.bodySpace, 8, spacePhase).toFixed(1)}px`,
+      "--section-space": `${mix(base.sectionSpace, 7, spacePhase).toFixed(1)}px`,
+      "--section-title-space": `${mix(9, 5, spacePhase).toFixed(1)}px`,
+      "--entry-space": `${mix(base.entrySpace, 5.5, spacePhase).toFixed(1)}px`,
+      "--name-size": `${mix(34, 28, typePhase).toFixed(1)}px`,
+      "--headline-size": `${mix(13, 11.4, typePhase).toFixed(1)}px`,
+      "--contact-size": `${mix(10, 9.1, typePhase).toFixed(1)}px`,
+      "--section-title-size": `${mix(11, 9.5, typePhase).toFixed(1)}px`,
+      "--entry-title-size": `${mix(13, 11.4, typePhase).toFixed(1)}px`,
+      "--entry-subtitle-size": `${mix(11, 9.8, typePhase).toFixed(1)}px`,
+      "--entry-date-size": `${mix(10, 9, typePhase).toFixed(1)}px`,
+      "--entry-text-size": `${mix(10.5, 9.4, typePhase).toFixed(1)}px`,
+      "--skill-label-width": `${mix(95, 76, detailPhase).toFixed(1)}px`,
+      "--skill-gap-y": `${mix(7, 4, spacePhase).toFixed(1)}px`,
+      "--skill-gap-x": `${mix(20, 13, detailPhase).toFixed(1)}px`,
+    } as React.CSSProperties;
+  }, [style.density, style.fitLevel]);
 
   const updateContact = (key: keyof Omit<ResumeData, "sections">, value: string | boolean) => {
     setData((current) => ({ ...current, [key]: value }));
@@ -550,6 +610,36 @@ export default function Home() {
     if (!window.confirm("Reset every field and section to the original starter resume?")) return;
     setData(initialData);
     setStyle(initialStyle);
+  };
+
+  const waitForResumeLayout = () =>
+    new Promise<void>((resolve) => {
+      window.requestAnimationFrame(() => window.requestAnimationFrame(() => resolve()));
+    });
+
+  const measureAtFitLevel = async (fitLevel: number) => {
+    setStyle((current) => ({ ...current, fitLevel }));
+    await waitForResumeLayout();
+    return Boolean(resumeRef.current && resumeRef.current.scrollHeight <= 1058);
+  };
+
+  const autoFitToOnePage = async () => {
+    setAutoFitting(true);
+    try {
+      if (await measureAtFitLevel(0)) return;
+      if (!(await measureAtFitLevel(100))) return;
+
+      let low = 0;
+      let high = 100;
+      for (let step = 0; step < 7; step += 1) {
+        const middle = Math.ceil((low + high) / 2);
+        if (await measureAtFitLevel(middle)) high = middle;
+        else low = middle;
+      }
+      setStyle((current) => ({ ...current, fitLevel: high }));
+    } finally {
+      setAutoFitting(false);
+    }
   };
 
   return (
@@ -838,6 +928,48 @@ export default function Home() {
                   />
                 </label>
 
+                <div className="smart-fit-card">
+                  <div className="smart-fit-heading">
+                    <span>
+                      <strong>Smart one-page fit</strong>
+                      <small>Spacing first, typography last</small>
+                    </span>
+                    <output>{style.fitLevel}%</output>
+                  </div>
+                  <input
+                    aria-label="Smart one-page fit strength"
+                    className="smart-fit-slider"
+                    disabled={autoFitting}
+                    max="100"
+                    min="0"
+                    onChange={(event) =>
+                      setStyle((current) => ({ ...current, fitLevel: Number(event.target.value) }))
+                    }
+                    step="1"
+                    type="range"
+                    value={style.fitLevel}
+                  />
+                  <div className="smart-fit-scale">
+                    <span>Roomy</span>
+                    <span className={pageCount === 1 ? "fit-status success" : "fit-status"}>
+                      {pageCount === 1 ? "Fits one page" : `${pageCount} pages`}
+                    </span>
+                    <span>Maximum fit</span>
+                  </div>
+                  <button
+                    className="fit-action"
+                    disabled={autoFitting}
+                    onClick={autoFitToOnePage}
+                    type="button"
+                  >
+                    {autoFitting ? "Finding the best fit…" : "Find the lightest one-page fit"}
+                  </button>
+                  <p>
+                    Nothing is removed. Smart fit tightens gaps and margins before making small,
+                    readability-safe type adjustments.
+                  </p>
+                </div>
+
                 <button className="secondary-button" onClick={resetResume} type="button">Reset starter content</button>
               </section>
             )}
@@ -938,7 +1070,7 @@ export default function Home() {
             <div
               className={`resume-paper font-${style.font} density-${style.density}`}
               ref={resumeRef}
-              style={{ "--resume-accent": style.accent } as React.CSSProperties}
+              style={{ "--resume-accent": style.accent, ...resumeFitVariables } as React.CSSProperties}
             >
               <header className={style.showPhoto && data.photo ? "resume-header with-photo" : "resume-header"}>
                 <div>
