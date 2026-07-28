@@ -31,6 +31,9 @@ test("server-renders Quicky Resume and its example case", async () => {
   const html = await response.text();
   assert.match(html, /<title>Quicky Resume<\/title>/i);
   assert.match(html, /Quicky Resume/);
+  assert.match(html, /Built by Tian Xing/);
+  assert.match(html, /v0\.2\.0/);
+  assert.match(html, /Changelog/);
   assert.match(html, /Tian Xing/);
   assert.match(html, /Educational Technologist/);
   assert.doesNotMatch(html, /codex-preview/);
@@ -61,6 +64,21 @@ test("keeps the example data and five layouts separate from the editor", async (
   assert.equal((themes.match(/id: "(classic|modern|executive|technical|academic)"/g) ?? []).length, 5);
   assert.match(page, /Research-backed layouts/);
   assert.match(packageJson, /"name": "quicky-resume"/);
+  assert.match(packageJson, /"version": "0\.2\.0"/);
+});
+
+test("uses an illustrated brand mark and keeps version history out of resume exports", async () => {
+  const [page, styles] = await Promise.all([
+    readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+  ]);
+
+  assert.doesNotMatch(page, /className="brand-mark" aria-hidden="true">QR</);
+  assert.match(page, /className="brand-glyph"/);
+  assert.match(page, /className="creator-credit">Built by Tian Xing/);
+  assert.match(page, /className="version-widget no-print"/);
+  assert.match(page, /Quicky Resume changelog/);
+  assert.match(styles, /\.changelog-card/);
 });
 
 test("opens Style first and keeps fit and photo controls in their intended panels", async () => {

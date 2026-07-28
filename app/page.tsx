@@ -567,10 +567,19 @@ export default function Home() {
     <main className="studio-shell">
       <header className="app-header no-print">
         <div className="brand-lockup">
-          <div className="brand-mark" aria-hidden="true">QR</div>
-          <div>
+          <div className="brand-mark" aria-hidden="true">
+            <span className="brand-glyph">
+              <i />
+              <i />
+              <i />
+            </span>
+          </div>
+          <div className="brand-copy">
             <p className="eyebrow">Personal workspace</p>
-            <h1>Quicky Resume</h1>
+            <div className="brand-title-row">
+              <h1>Quicky Resume</h1>
+              <span className="creator-credit">Built by Tian Xing</span>
+            </div>
           </div>
         </div>
         <div className="save-state">
@@ -1284,6 +1293,40 @@ export default function Home() {
           </div>
         </section>
       </div>
+
+      <details className="version-widget no-print">
+        <summary aria-label="Open the Quicky Resume version 0.2.0 changelog">v0.2.0</summary>
+        <aside className="changelog-card" aria-label="Quicky Resume changelog">
+          <div className="changelog-heading">
+            <div>
+              <p className="eyebrow">Product updates</p>
+              <h2>Changelog</h2>
+            </div>
+            <span>Latest</span>
+          </div>
+          <section className="changelog-release">
+            <div>
+              <strong>v0.2.0</strong>
+              <time dateTime="2026-07-28">Jul 28, 2026</time>
+            </div>
+            <ul>
+              <li>New artistic Quicky Resume brand mark</li>
+              <li>Creator credit and in-app version history</li>
+              <li>Latest Tian Xing resume added as the starter</li>
+            </ul>
+          </section>
+          <section className="changelog-release">
+            <div>
+              <strong>v0.1.0</strong>
+              <time dateTime="2026-07-27">Jul 27, 2026</time>
+            </div>
+            <ul>
+              <li>Five professional resume layouts</li>
+              <li>Inline editing, smart one-page fit, and exports</li>
+            </ul>
+          </section>
+        </aside>
+      </details>
     </main>
   );
 }

@@ -60,20 +60,95 @@ button {
   display: flex;
   align-items: center;
   gap: 12px;
+  min-width: 0;
 }
 
 .brand-mark {
-  width: 40px;
-  height: 40px;
-  border-radius: 12px;
+  position: relative;
+  width: 42px;
+  height: 42px;
+  flex: 0 0 42px;
+  border-radius: 14px 11px 14px 11px;
   display: grid;
   place-items: center;
   color: white;
-  background: var(--accent);
-  font-size: 13px;
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  box-shadow: 0 8px 18px rgba(40, 96, 93, 0.22);
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 78% 18%, rgba(197, 238, 227, 0.72) 0 2px, transparent 3px),
+    linear-gradient(145deg, #34746f 0%, #235754 58%, #183e3c 100%);
+  box-shadow:
+    0 9px 20px rgba(40, 96, 93, 0.24),
+    inset 0 1px 0 rgba(255, 255, 255, 0.22);
+  transform: rotate(-2deg);
+}
+
+.brand-mark::after {
+  position: absolute;
+  width: 22px;
+  height: 22px;
+  content: "";
+  right: -10px;
+  bottom: -11px;
+  border: 1px solid rgba(196, 233, 224, 0.24);
+  border-radius: 50%;
+}
+
+.brand-glyph {
+  position: relative;
+  width: 22px;
+  height: 26px;
+  padding-top: 6px;
+  display: grid;
+  align-content: start;
+  justify-items: center;
+  gap: 3px;
+  border: 2px solid rgba(255, 255, 255, 0.95);
+  border-radius: 7px 7px 9px 7px;
+  transform: rotate(2deg);
+}
+
+.brand-glyph::after {
+  position: absolute;
+  width: 10px;
+  height: 3px;
+  content: "";
+  right: -7px;
+  bottom: 1px;
+  border-radius: 999px;
+  background: #d8f1eb;
+  box-shadow: 0 0 0 1px rgba(28, 75, 71, 0.15);
+  transform: rotate(44deg);
+  transform-origin: left center;
+}
+
+.brand-glyph i {
+  width: 11px;
+  height: 1.5px;
+  display: block;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.brand-glyph i:nth-child(2) {
+  width: 8px;
+  justify-self: start;
+  margin-left: 4px;
+}
+
+.brand-glyph i:nth-child(3) {
+  width: 6px;
+  justify-self: start;
+  margin-left: 4px;
+}
+
+.brand-copy {
+  min-width: 0;
+}
+
+.brand-title-row {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
 }
 
 .app-header h1 {
@@ -81,6 +156,14 @@ button {
   font-size: 17px;
   line-height: 1.1;
   letter-spacing: -0.02em;
+}
+
+.creator-credit {
+  color: #84908d;
+  font-size: 10px;
+  font-weight: 560;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
 }
 
 .eyebrow {
@@ -108,6 +191,137 @@ button {
   border-radius: 50%;
   background: #4ca176;
   box-shadow: 0 0 0 4px rgba(76, 161, 118, 0.12);
+}
+
+.version-widget {
+  position: fixed;
+  right: 17px;
+  bottom: 15px;
+  z-index: 70;
+  color: #75807e;
+}
+
+.version-widget summary {
+  min-width: 54px;
+  padding: 6px 9px;
+  border: 1px solid rgba(132, 145, 141, 0.3);
+  border-radius: 999px;
+  list-style: none;
+  color: #7d8885;
+  background: rgba(242, 245, 244, 0.9);
+  box-shadow: 0 4px 12px rgba(28, 45, 42, 0.08);
+  cursor: pointer;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.045em;
+  text-align: center;
+  backdrop-filter: blur(10px);
+  transition: 150ms ease;
+}
+
+.version-widget summary::-webkit-details-marker {
+  display: none;
+}
+
+.version-widget summary:hover,
+.version-widget summary:focus-visible,
+.version-widget[open] summary {
+  border-color: rgba(82, 103, 98, 0.42);
+  color: #53615e;
+  background: rgba(250, 251, 251, 0.96);
+  outline: none;
+}
+
+.changelog-card {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 9px);
+  width: 288px;
+  padding: 18px;
+  border: 1px solid #d7dfdc;
+  border-radius: 16px;
+  color: #31403d;
+  background: rgba(252, 253, 253, 0.98);
+  box-shadow: 0 18px 48px rgba(29, 47, 43, 0.17);
+  backdrop-filter: blur(18px);
+  transform-origin: bottom right;
+  animation: changelog-in 150ms ease-out;
+}
+
+@keyframes changelog-in {
+  from {
+    opacity: 0;
+    transform: translateY(5px) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.changelog-heading {
+  margin-bottom: 15px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.changelog-heading h2 {
+  margin: 3px 0 0;
+  color: #20302d;
+  font-size: 17px;
+  letter-spacing: -0.025em;
+}
+
+.changelog-heading > span {
+  padding: 4px 7px;
+  border-radius: 999px;
+  color: #376863;
+  background: #e7f1ef;
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.changelog-release {
+  padding: 13px 0;
+  border-top: 1px solid #e2e7e5;
+}
+
+.changelog-release:last-child {
+  padding-bottom: 1px;
+}
+
+.changelog-release > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.changelog-release strong {
+  color: #2a3a37;
+  font-size: 11px;
+}
+
+.changelog-release time {
+  color: #8a9592;
+  font-size: 9px;
+}
+
+.changelog-release ul {
+  margin: 8px 0 0;
+  padding-left: 17px;
+  color: #687572;
+  font-size: 10px;
+  line-height: 1.55;
+}
+
+.changelog-release li + li {
+  margin-top: 3px;
 }
 
 .workspace {
@@ -1530,6 +1744,25 @@ button {
 
   .save-state {
     font-size: 0;
+  }
+
+  .brand-mark {
+    width: 38px;
+    height: 38px;
+    flex-basis: 38px;
+  }
+
+  .creator-credit {
+    display: none;
+  }
+
+  .version-widget {
+    right: 10px;
+    bottom: 10px;
+  }
+
+  .changelog-card {
+    width: min(288px, calc(100vw - 20px));
   }
 
   .panel-block {
