@@ -143,7 +143,7 @@ use the generated `dist/` output.
 The repository also includes a GitHub Actions workflow that creates a static
 Next.js export and publishes it to:
 
-<https://lovejzzz.github.io/quick-resume/>
+<https://quickyresume.com/>
 
 Every push to `main` refreshes the GitHub Pages site automatically. The
 Pages-specific build sets the `/quick-resume` base path while leaving the
