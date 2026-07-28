@@ -14,7 +14,7 @@ export const tianXingExample: ResumeData = {
   phone: "(551) 414-5977",
   location: "",
   portfolio: "xingpicture.myportfolio.com",
-  secondaryLink: "@xing_tian_lifeitself",
+  secondaryLink: "ins: xing_tian_lifeitself",
   photo: "",
   sections: [
     {
@@ -34,6 +34,37 @@ export const tianXingExample: ResumeData = {
       ],
     },
     {
+      id: "education",
+      kind: "education",
+      title: "Education",
+      entries: [
+        {
+          id: "education-1",
+          heading: "New York University",
+          subheading: "Master of Science, Games for Learning",
+          date: "2024-2026",
+          details: "",
+          bullets: [],
+        },
+        {
+          id: "education-2",
+          heading: "Berklee College of Music",
+          subheading: "Bachelor of Music, Jazz Composition",
+          date: "2021-2024",
+          details: "Scholarship Recipient",
+          bullets: [],
+        },
+        {
+          id: "education-3",
+          heading: "City University of New York",
+          subheading: "Associate in Science, Music Studies",
+          date: "2018-2020",
+          details: "CUNY Jazz Ensemble Pianist",
+          bullets: [],
+        },
+      ],
+    },
+    {
       id: "experience",
       kind: "experience",
       title: "Experience",
@@ -42,7 +73,7 @@ export const tianXingExample: ResumeData = {
           id: "experience-1",
           heading: "Educational Technologist",
           subheading: "NYU Silver School",
-          date: "2026/02-2026/05",
+          date: "2026/02-05",
           details: "",
           bullets: [
             "Deliver instructional support and administer learning-management systems.",
@@ -74,7 +105,6 @@ export const tianXingExample: ResumeData = {
           date: "",
           details: "A website turn a syllabus into a full teachable course.",
           bullets: [],
-          link: "edutool.dev",
         },
         {
           id: "project-2",
@@ -84,35 +114,12 @@ export const tianXingExample: ResumeData = {
           details: "An app focused on an original learning method, it works on anything that needs repetition.",
           bullets: [],
         },
-      ],
-    },
-    {
-      id: "education",
-      kind: "education",
-      title: "Education",
-      entries: [
         {
-          id: "education-1",
-          heading: "New York University",
-          subheading: "Master of Science, Games for Learning",
-          date: "2024-2026",
-          details: "ECT Creative Excellence Award Recipient",
-          bullets: [],
-        },
-        {
-          id: "education-2",
-          heading: "Berklee College of Music",
-          subheading: "Bachelor of Music, Jazz Composition",
-          date: "2021-2024",
-          details: "Scholarship Recipient",
-          bullets: [],
-        },
-        {
-          id: "education-3",
-          heading: "City University of New York",
-          subheading: "Associate in Science, Music Studies",
-          date: "2018-2020",
-          details: "CUNY Jazz Ensemble Pianist",
+          id: "project-3",
+          heading: "Bebop Puzzle",
+          subheading: "Web Game Designer & Developer",
+          date: "",
+          details: "A jazz ear training puzzle game.",
           bullets: [],
         },
       ],
@@ -127,7 +134,7 @@ export const tianXingExample: ResumeData = {
           heading: "Learning & AI",
           subheading: "",
           date: "",
-          details: "Instructional support, LMS administration, AI implementation, workflow automation, Dify",
+          details: "Instructional support, LMS administration, AI implementation, workflow automation",
           bullets: [],
         },
         {
@@ -163,7 +170,7 @@ export const tianXingExample: ResumeData = {
       entries: [
         {
           id: "award-1",
-          heading: "IPA International Photography Award - 3rd place",
+          heading: "IPA International Photography Award 3rd place",
           subheading: "",
           date: "2017",
           details: "People & Event Category",
