@@ -239,7 +239,7 @@ test.describe("resume import", () => {
     const data = parseResumeLines(["Education", "Carnegie Mellon University 2014-2018"]);
     const education = data.sections.find((section) => section.kind === "education");
     expect(education?.entries[0].heading).toBe("Carnegie Mellon University");
-    expect(education?.entries[0].date).toBe("2014-2018");
+    expect(education?.entries[0].date).toBe("2014 \u2013 2018");
   });
 
   test("treats unprefixed lines as bullets when the marker glyph is missing", () => {
@@ -271,10 +271,15 @@ test.describe("resume import", () => {
     expect(data.sections[0].entries).toHaveLength(1);
   });
 
+  test("normalises date ranges to a consistent en dash", () => {
+    const data = parseResumeLines(["Experience", "Analyst \u2014 Acme Jan 2020-Mar 2022"]);
+    expect(data.sections[0].entries[0].date).toBe("Jan 2020 \u2013 Mar 2022");
+  });
+
   test("attaches a date that sits on the line below the title", () => {
     const data = parseResumeLines(["Experience", "Staff Engineer", "Northwind Systems 2021-2024"]);
     const entry = data.sections[0].entries[0];
     expect(entry.heading).toBe("Staff Engineer");
-    expect(entry.date).toBe("2021-2024");
+    expect(entry.date).toBe("2021 \u2013 2024");
   });
 });

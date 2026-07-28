@@ -150,9 +150,13 @@ export function ContentPanel({
     onReplaceData(result.data);
     setImportMessage({
       tone: "ok",
-      text: result.warnings.length
-        ? `Imported as a draft. ${result.warnings.join(" ")}`
-        : "Imported. Check every section before exporting — layout PDFs do not always convert cleanly.",
+      // Report what was actually recovered so the user knows where to look
+      // rather than having to re-read the whole document.
+      text: [
+        result.summary || "Imported.",
+        ...result.warnings,
+        "Check every section before exporting — designed layouts do not always convert cleanly.",
+      ].join(" "),
     });
   };
 
@@ -221,13 +225,13 @@ export function ContentPanel({
             <div>
               <strong>Start from an existing resume</strong>
               <small>
-                Reads a PDF or plain-text resume in your browser and fills the sections below. Nothing is uploaded.
+                Reads a PDF, Word .docx, or plain-text resume in your browser and fills the sections below. Nothing is uploaded.
               </small>
             </div>
             <label className="import-action">
               {importing ? "Reading…" : "Import file"}
               <input
-                accept=".pdf,.txt,.md,application/pdf,text/plain,text/markdown"
+                accept=".pdf,.docx,.txt,.md,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,text/markdown"
                 disabled={importing}
                 onChange={handleImport}
                 ref={importInputRef}

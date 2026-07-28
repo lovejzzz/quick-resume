@@ -17,7 +17,7 @@ from the editor itself, so it can be replaced without changing product logic.
 ### Writing
 
 - Edit through structured form fields or directly in the resume preview
-- Import an existing PDF or plain-text resume as a first draft
+- Import an existing PDF, Word `.docx`, or plain-text resume as a first draft
 - Keep several resumes side by side and tailor one per application
 - Navigate sections from a sticky Content sidebar
 - Add, remove, rename, and fluidly reorder sections with pointer or keyboard
@@ -166,14 +166,44 @@ and applicant tracking systems.
 
 ## Importing an existing resume
 
-Content → **Import file** reads a PDF or plain-text resume with a dynamically
-loaded [pdf.js](https://mozilla.github.io/pdf.js/) and maps recognised headings
-onto sections. The file never leaves the browser.
+Content → **Import file** reads a PDF, a Word `.docx`, or plain text, entirely
+in the browser. The file never leaves the machine.
 
-This is a best-effort first draft, not a faithful conversion. Multi-column and
-heavily designed PDFs extract poorly, and image-only scans contain no text at
-all — the importer says so rather than producing silent nonsense. Always review
-every section afterwards.
+The pipeline runs in stages, each in its own module under
+[`app/lib/import/`](app/lib/import):
+
+1. **Extract** — pdf.js is loaded on demand and its text fragments are
+   reassembled into visual lines. Word gaps are measured rather than assumed, so
+   a letter-spaced heading does not become `E D U C A T I O N`; baselines are
+   clustered with tolerance, so a right-aligned date stays on the same line as
+   the job title it belongs to. A `.docx` is unzipped with `DecompressionStream`
+   and read from its XML, which still carries list membership and bold runs.
+2. **Arrange** — pages are split into columns by finding a vertical gutter no
+   text crosses, so a sidebar is read as its own column instead of interleaving
+   with the main one. Running headers, footers, and page numbers are dropped by
+   spotting repeats in the top and bottom bands.
+3. **Detect headings** — known section vocabulary first, then typographic
+   evidence (caps, larger face, distinct font) so bespoke sections are still
+   found. The header block is delimited by vocabulary only, because a name is
+   also short, large, and distinctly set.
+4. **Parse** — lines are grouped into entries. The role is chosen by evidence
+   rather than position, so both the common "title then employer" order and
+   LinkedIn's reverse order work. Indented or long unprefixed lines are treated
+   as bullets, since PDF text extraction routinely drops list markers, and
+   soft-wrapped lines are rejoined.
+
+This remains a best-effort first draft, not a faithful conversion. Heavily
+designed layouts still extract imperfectly, and an image-only scan has no text
+at all — the importer says so rather than silently producing nonsense. After an
+import you are told how many sections, items, and bullets were recovered, and
+asked to check them.
+
+Coverage is measured against a corpus of deliberately awkward layouts in
+[`tests/fixtures/resumes/`](tests/fixtures/resumes) — letter-spaced headings, a
+two-column sidebar, running headers across pages, wrapped bullets, a LinkedIn
+export, and typographic edge cases. Each is rendered to a real PDF and imported
+through the actual UI by
+[`tests/import-fixtures.spec.ts`](tests/import-fixtures.spec.ts).
 
 ## Keyword matching
 
