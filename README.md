@@ -137,3 +137,14 @@ npm run build
 The repository includes the Vinext/Cloudflare worker configuration used by the
 hosted example. Other compatible Cloudflare Workers deployment workflows can
 use the generated `dist/` output.
+
+### GitHub Pages
+
+The repository also includes a GitHub Actions workflow that creates a static
+Next.js export and publishes it to:
+
+<https://lovejzzz.github.io/quick-resume/>
+
+Every push to `main` refreshes the GitHub Pages site automatically. The
+Pages-specific build sets the `/quick-resume` base path while leaving the
+Cloudflare/Vinext build unchanged.

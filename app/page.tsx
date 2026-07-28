@@ -445,7 +445,7 @@ export default function Home() {
     if (!file) return;
     const reader = new FileReader();
     reader.onload = () => {
-      const image = new Image();
+      const image = new window.Image();
       image.onload = () => {
         const max = 600;
         const ratio = Math.min(1, max / Math.max(image.width, image.height));

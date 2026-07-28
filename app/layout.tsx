@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import { headers } from "next/headers";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -13,33 +12,32 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-export async function generateMetadata(): Promise<Metadata> {
-  const requestHeaders = await headers();
-  const host = requestHeaders.get("x-forwarded-host") ?? requestHeaders.get("host") ?? "localhost";
-  const protocol = requestHeaders.get("x-forwarded-proto") ?? (host.includes("localhost") ? "http" : "https");
-  const metadataBase = new URL(`${protocol}://${host}`);
-  const title = "Quick Resume";
-  const description =
-    "Build a clear, job-ready resume with five research-backed layouts, smart one-page fitting, and PDF, PNG, or JPG export.";
+const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL ?? "https://tian-resume-studio.skylab.chatgpt.site").replace(
+  /\/$/,
+  "",
+);
+const title = "Quick Resume";
+const description =
+  "Build a clear, job-ready resume with five research-backed layouts, smart one-page fitting, and PDF, PNG, or JPG export.";
+const socialImage = `${siteUrl}/og.png`;
 
-  return {
-    metadataBase,
+export const metadata: Metadata = {
+  metadataBase: new URL(siteUrl),
+  title,
+  description,
+  openGraph: {
     title,
     description,
-    openGraph: {
-      title,
-      description,
-      type: "website",
-      images: [{ url: "/og.png", width: 1731, height: 909, alt: "Quick Resume and its five professional layouts" }],
-    },
-    twitter: {
-      card: "summary_large_image",
-      title,
-      description,
-      images: ["/og.png"],
-    },
-  };
-}
+    type: "website",
+    images: [{ url: socialImage, width: 1731, height: 909, alt: "Quick Resume and its five professional layouts" }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title,
+    description,
+    images: [socialImage],
+  },
+};
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
