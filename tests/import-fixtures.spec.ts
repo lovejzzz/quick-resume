@@ -5,6 +5,8 @@ import { fileURLToPath } from "node:url";
 import { expectations } from "./fixtures/expectations";
 // @ts-expect-error -- plain JS helper, no type declarations needed
 import { writeDocxFixture } from "./fixtures/make-docx.mjs";
+// @ts-expect-error -- plain JS helper, no type declarations needed
+import { writeGarbledPdf, writeNearEmptyPdf } from "./fixtures/make-pdfs.mjs";
 
 /**
  * End-to-end import coverage over a corpus of realistic resume layouts.
@@ -128,25 +130,54 @@ test("reads a Word .docx, using its list and bold metadata", async ({ page }) =>
   expect(got.all).not.toMatch(/[\u0000-\u0008\u000e-\u001f]/);
 });
 
-test("reports an image-only PDF instead of importing nothing", async ({ page, browser }) => {
-  // A page with no text layer stands in for a scan.
-  const maker = await browser.newPage();
-  await maker.setContent(
-    '<body style="margin:0"><svg width="600" height="800" xmlns="http://www.w3.org/2000/svg">' +
-      '<rect width="600" height="800" fill="#ddd"/></svg></body>',
-  );
-  const path = join(TMP, "scan.pdf");
-  await maker.pdf({ path, format: "Letter" });
-  await maker.close();
+test.describe("failure diagnosis", () => {
+  async function importAndReadError(page: Page, path: string) {
+    await page.goto("/");
+    await expect(page.locator(".resume-paper h2")).toBeVisible();
+    await page.getByRole("button", { name: "Content", exact: true }).click();
+    await page.locator(".import-action input[type=file]").setInputFiles(path);
+    const message = page.locator(".import-message.error");
+    await expect(message).toBeVisible({ timeout: 30_000 });
+    return (await message.textContent()) ?? "";
+  }
 
-  await page.goto("/");
-  await expect(page.locator(".resume-paper h2")).toBeVisible();
-  await page.getByRole("button", { name: "Content", exact: true }).click();
-  await page.locator(".import-action input[type=file]").setInputFiles(path);
+  test("calls a scan a scan, not a broken file", async ({ page, browser }) => {
+    // Rasterise a real resume, then embed the bitmap so the PDF has ink but no
+    // text layer — exactly what a scanner produces.
+    const shot = await browser.newPage({ viewport: { width: 816, height: 1056 } });
+    await shot.setContent(await readFile(join(HERE, "fixtures", "resumes", "classic.html"), "utf8"));
+    const png = await shot.screenshot({ fullPage: true });
+    await shot.close();
 
-  const message = page.locator(".import-message.error");
-  await expect(message).toBeVisible({ timeout: 30_000 });
-  await expect(message).toContainText(/scan|OCR/i);
+    const embed = await browser.newPage();
+    await embed.setContent(
+      `<body style="margin:0"><img style="width:100%;display:block" src="data:image/png;base64,${png.toString("base64")}"></body>`,
+    );
+    const path = join(TMP, "scan.pdf");
+    await embed.pdf({ path, format: "Letter", printBackground: true });
+    await embed.close();
+
+    const text = await importAndReadError(page, path);
+    expect(text).toMatch(/no text layer/i);
+    expect(text).toMatch(/scan or a photo/i);
+    // It must not be described as blank — the page is full of content.
+    expect(text).not.toMatch(/blank/i);
+  });
+
+  test("identifies a broken font encoding rather than blaming the user", async ({ page }) => {
+    const path: string = await writeGarbledPdf(join(TMP, "garbled.pdf"));
+    const text = await importAndReadError(page, path);
+    expect(text).toMatch(/character map|nonsense/i);
+    // The message quotes the garbage so the diagnosis is checkable.
+    expect(text).toMatch(/Wypfh/);
+    expect(text).not.toMatch(/scan or a photo/i);
+  });
+
+  test("calls a near-empty PDF blank", async ({ page }) => {
+    const path: string = await writeNearEmptyPdf(join(TMP, "near-empty.pdf"));
+    const text = await importAndReadError(page, path);
+    expect(text).toMatch(/blank/i);
+  });
 });
 
 test("rejects an unsupported file with a useful reason", async ({ page }) => {

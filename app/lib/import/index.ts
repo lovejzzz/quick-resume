@@ -1,6 +1,7 @@
 import type { ResumeData } from "../resume-model";
 import { extractDocxLines } from "./docx";
-import { extractPdfLines, linesFromText, type TextLine } from "./extract";
+import { explain, isRecoverableByOcr, type PdfHealth } from "./diagnose";
+import { extractPdf, linesFromText, type TextLine } from "./extract";
 import { parseLines } from "./parse";
 
 /**
@@ -14,7 +15,7 @@ import { parseLines } from "./parse";
  */
 export type ImportResult =
   | { ok: true; data: ResumeData; warnings: string[]; summary: string }
-  | { ok: false; reason: string };
+  | { ok: false; reason: string; health?: PdfHealth; canOcr?: boolean };
 
 const isPdf = (file: File) => file.type === "application/pdf" || /\.pdf$/i.test(file.name);
 const isDocx = (file: File) =>
@@ -22,19 +23,52 @@ const isDocx = (file: File) =>
   /\.docx$/i.test(file.name);
 const isText = (file: File) => file.type.startsWith("text/") || /\.(txt|md|markdown)$/i.test(file.name);
 
+
+/**
+ * What to actually do about it. Routing to OCR the reader already owns beats
+ * anything shipped in the page: Preview and Notes run on-device, and the
+ * cloud options are far more accurate than an in-browser engine.
+ */
+function advice(health: PdfHealth): string {
+  switch (health.kind) {
+    case "image-only":
+    case "undecodable":
+      return "Open it in Preview on a Mac, or upload it to Google Drive and open it with Google Docs, then paste the recovered text here as a .txt file. Exporting a fresh PDF from the original document also works.";
+    case "empty":
+      return "Check that you picked the right file.";
+    default:
+      return "";
+  }
+}
+
 export async function importResumeFile(file: File): Promise<ImportResult> {
   try {
     let lines: TextLine[];
+    let partialNote = "";
 
     if (isPdf(file)) {
-      lines = await extractPdfLines(file);
+      const extraction = await extractPdf(file);
+      const { health } = extraction;
+
+      if (health.kind !== "ok" && health.kind !== "partial") {
+        return {
+          ok: false,
+          reason: `${explain(health)} ${advice(health)}`.trim(),
+          health,
+          canOcr: isRecoverableByOcr(health),
+        };
+      }
+
+      lines = extraction.lines;
       if (!lines.length) {
         return {
           ok: false,
-          reason:
-            "No text was found in that PDF. It is most likely a scan — an image-only PDF cannot be read without OCR. Export a text PDF from the original document, or paste the text into a .txt file.",
+          reason: `${explain(health)} ${advice(health)}`.trim(),
+          health,
+          canOcr: isRecoverableByOcr(health),
         };
       }
+      if (health.kind === "partial") partialNote = explain(health);
     } else if (isDocx(file)) {
       lines = await extractDocxLines(file);
       if (!lines.length) return { ok: false, reason: "That Word file appears to be empty." };
@@ -55,7 +89,12 @@ export async function importResumeFile(file: File): Promise<ImportResult> {
     }
 
     const { data, warnings, summary } = parseLines(lines);
-    return { ok: true, data, warnings, summary };
+    return {
+      ok: true,
+      data,
+      warnings: partialNote ? [partialNote, ...warnings] : warnings,
+      summary,
+    };
   } catch (error) {
     const detail = error instanceof Error && /ZIP|document\.xml/i.test(error.message)
       ? " That Word file could not be opened."

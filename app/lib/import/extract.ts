@@ -1,3 +1,5 @@
+import { diagnose, type PageStats, type PdfHealth } from "./diagnose";
+import { ensureMapHelpers } from "./map-helpers";
 import { normaliseText } from "./normalize";
 
 /** One reconstructed visual line of text, with the geometry used to read it. */
@@ -168,22 +170,97 @@ function buildLines(fragments: Fragment[], page: number, column: number, bodyFon
     .filter((line): line is TextLine => line !== null);
 }
 
-/** Reads a PDF into positioned lines using a lazily imported pdf.js. */
-export async function extractPdfLines(file: File): Promise<TextLine[]> {
+export type PdfExtraction = {
+  lines: TextLine[];
+  health: PdfHealth;
+  /** Kept so OCR can re-render pages without re-reading the file. */
+  data: ArrayBuffer;
+};
+
+/** Loads pdf.js on demand and points it at its bundled worker. */
+export async function loadPdfjs() {
+  // pdf.js v5 relies on a proposal-stage Map method for every render path.
+  ensureMapHelpers();
   const pdfjs = await import("pdfjs-dist");
   pdfjs.GlobalWorkerOptions.workerSrc = new URL(
     "pdfjs-dist/build/pdf.worker.mjs",
     import.meta.url,
   ).toString();
+  return pdfjs;
+}
 
-  const document = await pdfjs.getDocument({ data: await file.arrayBuffer() }).promise;
+
+/** The slice of PDFPageProxy this needs, kept structural so it is testable. */
+type RenderablePage = {
+  getViewport: (options: { scale: number }) => { width: number; height: number };
+  render: (options: {
+    canvas: HTMLCanvasElement;
+    canvasContext: CanvasRenderingContext2D;
+    viewport: never;
+  }) => { promise: Promise<void> };
+};
+
+/**
+ * Renders a page at a thumbnail scale and reports whether it draws anything.
+ *
+ * This separates a scanned page — which has no text but plenty of ink — from a
+ * genuinely blank or corrupt one, so each can be explained differently.
+ */
+export async function pageHasInk(page: RenderablePage): Promise<boolean> {
+  if (typeof document === "undefined") return false;
+  try {
+    const viewport = page.getViewport({ scale: 0.2 });
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.ceil(viewport.width));
+    canvas.height = Math.max(1, Math.ceil(viewport.height));
+    const context = canvas.getContext("2d", { willReadFrequently: true });
+    if (!context) return false;
+    context.fillStyle = "#ffffff";
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    await page.render({ canvas, canvasContext: context, viewport: viewport as never }).promise;
+
+    const { data } = context.getImageData(0, 0, canvas.width, canvas.height);
+    let inked = 0;
+    for (let index = 0; index < data.length; index += 4) {
+      // Anything meaningfully darker than paper counts as ink.
+      if (data[index] < 235 || data[index + 1] < 235 || data[index + 2] < 235) inked += 1;
+    }
+    // A stray artefact or a hairline rule is not content.
+    return inked / (data.length / 4) > 0.004;
+  } catch {
+    return false;
+  }
+}
+
+/** Reads a PDF into positioned lines, and reports what it found. */
+export async function extractPdf(file: File): Promise<PdfExtraction> {
+  const pdfjs = await loadPdfjs();
+
+  const data = await file.arrayBuffer();
+  // pdf.js takes ownership of the buffer it is given, so hand it a copy and
+  // keep the original for a possible OCR pass.
+  const document = await pdfjs.getDocument({ data: data.slice(0) }).promise;
   const lines: TextLine[] = [];
+  const stats: PageStats[] = [];
 
   try {
     for (let pageNumber = 1; pageNumber <= document.numPages; pageNumber += 1) {
       const page = await document.getPage(pageNumber);
       const viewport = page.getViewport({ scale: 1 });
       const content = await page.getTextContent();
+
+      // Whether the page draws anything is established by rendering it at a
+      // tiny scale and looking for non-white pixels. getOperatorList() would
+      // also answer this but is broken in the bundled build, and rendering is
+      // the same path OCR needs anyway.
+      const pageText = content.items
+        .map((item) => ("str" in item ? item.str : ""))
+        .join("");
+      const images = pageText.trim().length
+        ? 0
+        : (await pageHasInk(page)) ? 1 : 0;
+
+      stats.push({ page: pageNumber, textChars: pageText.trim().length, images, text: pageText });
 
       const fragments: Fragment[] = [];
       for (const item of content.items) {
@@ -218,7 +295,12 @@ export async function extractPdfLines(file: File): Promise<TextLine[]> {
   } finally {
     await document.destroy();
   }
-  return lines;
+  return { lines, health: diagnose(stats), data };
+}
+
+/** Back-compatible helper for callers that only want the lines. */
+export async function extractPdfLines(file: File): Promise<TextLine[]> {
+  return (await extractPdf(file)).lines;
 }
 
 /** Wraps plain text so downstream stages see the same shape as a PDF. */
