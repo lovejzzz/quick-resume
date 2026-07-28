@@ -2,6 +2,7 @@ import type { ResumeData } from "../resume-model";
 import { extractDocxLines } from "./docx";
 import { explain, isRecoverableByOcr, type PdfHealth } from "./diagnose";
 import { extractPdf, linesFromText, type TextLine } from "./extract";
+import { ocrPdf, riskyFieldWarnings, type OcrOptions } from "./ocr";
 import { parseLines } from "./parse";
 
 /**
@@ -14,8 +15,11 @@ import { parseLines } from "./parse";
  * that the user then corrects.
  */
 export type ImportResult =
-  | { ok: true; data: ResumeData; warnings: string[]; summary: string }
-  | { ok: false; reason: string; health?: PdfHealth; canOcr?: boolean };
+  | { ok: true; data: ResumeData; warnings: string[]; summary: string; viaOcr?: boolean }
+  | { ok: false; reason: string; health?: PdfHealth; canOcr?: boolean; retry?: OcrRetry };
+
+/** Everything needed to run OCR over the file that just failed to import. */
+export type OcrRetry = { data: ArrayBuffer; pages: number };
 
 const isPdf = (file: File) => file.type === "application/pdf" || /\.pdf$/i.test(file.name);
 const isDocx = (file: File) =>
@@ -51,11 +55,13 @@ export async function importResumeFile(file: File): Promise<ImportResult> {
       const { health } = extraction;
 
       if (health.kind !== "ok" && health.kind !== "partial") {
+        const canOcr = isRecoverableByOcr(health);
         return {
           ok: false,
           reason: `${explain(health)} ${advice(health)}`.trim(),
           health,
-          canOcr: isRecoverableByOcr(health),
+          canOcr,
+          retry: canOcr ? { data: extraction.data, pages: extraction.pages } : undefined,
         };
       }
 
@@ -65,7 +71,8 @@ export async function importResumeFile(file: File): Promise<ImportResult> {
           ok: false,
           reason: `${explain(health)} ${advice(health)}`.trim(),
           health,
-          canOcr: isRecoverableByOcr(health),
+          canOcr: true,
+          retry: { data: extraction.data, pages: extraction.pages },
         };
       }
       if (health.kind === "partial") partialNote = explain(health);
@@ -108,3 +115,37 @@ export async function importResumeFile(file: File): Promise<ImportResult> {
 
 export { parseLines } from "./parse";
 export { linesFromText } from "./extract";
+
+
+/**
+ * Reads a PDF by recognising its rendered pixels, for documents whose text
+ * layer is absent or unusable. Downloads the recognition engine on first use.
+ */
+export async function importByOcr(retry: OcrRetry, options: OcrOptions = {}): Promise<ImportResult> {
+  try {
+    const result = await ocrPdf(retry.data, options);
+    if (!result.lines.length) {
+      return {
+        ok: false,
+        reason: "Nothing legible was found in that scan. A sharper or straighter scan may work better.",
+      };
+    }
+
+    const { data, warnings, summary } = parseLines(result.lines);
+    return {
+      ok: true,
+      data,
+      viaOcr: true,
+      summary,
+      warnings: [...riskyFieldWarnings(data, result), ...warnings],
+    };
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") {
+      return { ok: false, reason: "Reading cancelled." };
+    }
+    return {
+      ok: false,
+      reason: "The scan could not be read. Try a clearer copy, or paste the text in instead.",
+    };
+  }
+}

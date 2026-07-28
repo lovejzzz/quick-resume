@@ -21,7 +21,7 @@ import { useRef, useState, type ChangeEvent, type RefObject } from "react";
 import { SchoolAutocomplete } from "./SchoolAutocomplete";
 import { SortableSectionCard } from "./SortableSectionCard";
 import { sectionTemplates } from "../lib/fit";
-import { importResumeFile } from "../lib/import-resume";
+import { importByOcr, importResumeFile, type ImportResult, type OcrProgress, type OcrRetry } from "../lib/import-resume";
 import {
   makeId,
   type ResumeData,
@@ -55,6 +55,9 @@ export function ContentPanel({
   const [draggedSection, setDraggedSection] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
   const [importMessage, setImportMessage] = useState<{ tone: "error" | "ok"; text: string } | null>(null);
+  const [ocrOffer, setOcrOffer] = useState<OcrRetry | null>(null);
+  const [ocrProgress, setOcrProgress] = useState<OcrProgress | null>(null);
+  const ocrAbort = useRef<AbortController | null>(null);
   const importInputRef = useRef<HTMLInputElement>(null);
 
   const sensors = useSensors(
@@ -134,19 +137,13 @@ export function ContentPanel({
     });
   };
 
-  const handleImport = async (event: ChangeEvent<HTMLInputElement>) => {
-    const input = event.currentTarget;
-    const file = input.files?.[0];
-    if (!file) return;
-    setImporting(true);
-    setImportMessage(null);
-    const result = await importResumeFile(file);
-    setImporting(false);
-    input.value = "";
+  const applyResult = (result: ImportResult) => {
     if (!result.ok) {
       setImportMessage({ tone: "error", text: result.reason });
+      setOcrOffer(result.retry ?? null);
       return;
     }
+    setOcrOffer(null);
     onReplaceData(result.data);
     setImportMessage({
       tone: "ok",
@@ -158,6 +155,33 @@ export function ContentPanel({
         "Check every section before exporting — designed layouts do not always convert cleanly.",
       ].join(" "),
     });
+  };
+
+  const handleImport = async (event: ChangeEvent<HTMLInputElement>) => {
+    const input = event.currentTarget;
+    const file = input.files?.[0];
+    if (!file) return;
+    setImporting(true);
+    setImportMessage(null);
+    setOcrOffer(null);
+    const result = await importResumeFile(file);
+    setImporting(false);
+    input.value = "";
+    applyResult(result);
+  };
+
+  const runOcr = async (retry: OcrRetry) => {
+    const controller = new AbortController();
+    ocrAbort.current = controller;
+    setOcrProgress({ phase: "loading", ratio: 0 });
+    setImportMessage(null);
+    const result = await importByOcr(retry, {
+      signal: controller.signal,
+      onProgress: setOcrProgress,
+    });
+    ocrAbort.current = null;
+    setOcrProgress(null);
+    applyResult(result);
   };
 
   return (
@@ -243,6 +267,47 @@ export function ContentPanel({
             <p className={importMessage.tone === "error" ? "import-message error" : "import-message"} role="status">
               {importMessage.text}
             </p>
+          )}
+
+          {ocrOffer && !ocrProgress && (
+            <div className="ocr-offer">
+              <div>
+                <strong>Read it with text recognition instead?</strong>
+                <small>
+                  Recognises the page images on this device. Downloads a 6.7 MB engine the first time, then
+                  works offline. Accuracy is good but not perfect — you will need to check the result,
+                  especially your email and phone.
+                </small>
+              </div>
+              <button className="ocr-run" onClick={() => runOcr(ocrOffer)} type="button">
+                Read {ocrOffer.pages === 1 ? "the page" : `all ${ocrOffer.pages} pages`}
+              </button>
+            </div>
+          )}
+
+          {ocrProgress && (
+            <div aria-live="polite" className="ocr-progress">
+              <div className="ocr-progress-head">
+                <span>
+                  {ocrProgress.phase === "loading"
+                    ? "Downloading the recognition engine…"
+                    : ocrProgress.phase === "rendering"
+                      ? `Rendering page ${ocrProgress.page} of ${ocrProgress.pages}…`
+                      : `Reading page ${ocrProgress.page} of ${ocrProgress.pages}…`}
+                </span>
+                <button
+                  onClick={() => {
+                    ocrAbort.current?.abort();
+                  }}
+                  type="button"
+                >
+                  Cancel
+                </button>
+              </div>
+              <div className="ocr-progress-track">
+                <span style={{ width: `${Math.round(ocrProgress.ratio * 100)}%` }} />
+              </div>
+            </div>
           )}
 
           <div className="field-grid two">

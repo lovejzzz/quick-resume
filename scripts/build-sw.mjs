@@ -19,7 +19,15 @@ const BASE_PATH = (process.env.NEXT_PUBLIC_BASE_PATH ?? "").replace(/\/$/, "");
  * opt-in action, so they are cached at runtime the first time they are used
  * instead of costing every visitor a background download.
  */
-const EXCLUDE = [/pdf\.worker/i, /us-colleges\.json$/i, /\.map$/, /^sw\.js$/, /\.nojekyll$/];
+const EXCLUDE = [
+  /pdf\.worker/i,
+  /us-colleges\.json$/i,
+  // The OCR engine is opt-in and ~7 MB; it is cached at runtime on first use.
+  /^ocr\//,
+  /\.map$/,
+  /^sw\.js$/,
+  /\.nojekyll$/,
+];
 
 async function walk(directory) {
   const entries = await readdir(directory, { withFileTypes: true });

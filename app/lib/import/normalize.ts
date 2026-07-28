@@ -29,9 +29,15 @@ export function normaliseText(value: string): string {
     .trim();
 }
 
-/** Bullet glyphs that begin a list item, plus the ASCII stand-ins for them. */
+/**
+ * Bullet glyphs that begin a list item.
+ *
+ * OCR rarely recognises a bullet as itself — a round marker comes back as
+ * `+`, `«`, `>`, `©`, or a short run of them — so the class is broad and a run
+ * of up to three markers is consumed.
+ */
 export const BULLET_PREFIX =
-  /^\s*(?:[•·▪◦‣∙⁃⁌⁍●○■□❖✿✱*»→⇒]|[-–—](?=\s))\s*/;
+  /^\s*(?:[\u2022\u00b7\u25aa\u25e6\u2023\u2219\u2043\u204c\u204d\u25cf\u25cb\u25a0\u25a1\u2756\u273f\u2731*+\u00ab\u00bb<>~\u00a2\u00a9\u00ae\u00b0\u2192\u21d2\u2666\u2013\u2014]|[-](?=\s)){1,3}\s+/;
 
 export const stripBullet = (line: string) => line.replace(BULLET_PREFIX, "").trim();
 export const isBulletLine = (line: string) => BULLET_PREFIX.test(line);

@@ -18,6 +18,7 @@ from the editor itself, so it can be replaced without changing product logic.
 
 - Edit through structured form fields or directly in the resume preview
 - Import an existing PDF, Word `.docx`, or plain-text resume as a first draft
+- Read scanned PDFs with on-device text recognition, downloaded only when needed
 - Keep several resumes side by side and tailor one per application
 - Navigate sections from a sticky Content sidebar
 - Add, remove, rename, and fluidly reorder sections with pointer or keyboard
@@ -192,11 +193,44 @@ The pipeline runs in stages, each in its own module under
    as bullets, since PDF text extraction routinely drops list markers, and
    soft-wrapped lines are rejoined.
 
+### When a PDF cannot be read
+
+"No text found" covers several unrelated problems, so each is identified and
+explained separately: a **scan** (ink but no text layer), a **broken font
+encoding** (text that decodes to nonsense although the page looks perfect), a
+**partial** text layer, and a genuinely **blank** file. The broken-encoding case
+is the one worth naming — it is otherwise invisible, since the reader sees a
+legible page and a tool claiming it cannot read it.
+
+Detection is conservative: nonsense is only declared when vowel frequency and
+common-word frequency both fail, at thresholds measured against the fixture
+corpus, and the word list spans the major Latin-script languages so a French or
+German resume is not mistaken for garbage.
+
+### Text recognition
+
+For a scan or a broken encoding, the editor offers to read the rendered pixels
+instead. Recognition runs on-device with
+[tesseract.js](https://github.com/naptha/tesseract.js); the engine, its WASM
+core, and the language model are all served from this site rather than a CDN
+(see [`scripts/copy-ocr-assets.mjs`](scripts/copy-ocr-assets.mjs)), so importing
+a document still tells no one anything. About 6.7 MB downloads on first use and
+is then cached for offline use; none of it is in the initial page load.
+
+Recognition is never automatic and never silent. It is offered with its cost
+stated, shows progress, and can be cancelled.
+
+**Its output is checked differently from a text layer.** OCR confuses `0` with
+`O`, `1` with `l`, and — observed in the test corpus — `y` with `v`, often at
+full confidence. A wrong character in a bullet is obvious on reading; a wrong
+character in an email address is not, and it silently breaks the only way an
+employer can reply. So after recognition the editor quotes back exactly what it
+read for the email, phone, and link, rather than merely advising you to check
+them: seeing `priva.r@example.com` is what makes the error findable.
+
 This remains a best-effort first draft, not a faithful conversion. Heavily
-designed layouts still extract imperfectly, and an image-only scan has no text
-at all — the importer says so rather than silently producing nonsense. After an
-import you are told how many sections, items, and bullets were recovered, and
-asked to check them.
+designed layouts still extract imperfectly. After an import you are told how
+many sections, items, and bullets were recovered, and asked to check them.
 
 Coverage is measured against a corpus of deliberately awkward layouts in
 [`tests/fixtures/resumes/`](tests/fixtures/resumes) — letter-spaced headings, a

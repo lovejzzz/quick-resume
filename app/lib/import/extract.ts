@@ -175,6 +175,7 @@ export type PdfExtraction = {
   health: PdfHealth;
   /** Kept so OCR can re-render pages without re-reading the file. */
   data: ArrayBuffer;
+  pages: number;
 };
 
 /** Loads pdf.js on demand and points it at its bundled worker. */
@@ -295,7 +296,7 @@ export async function extractPdf(file: File): Promise<PdfExtraction> {
   } finally {
     await document.destroy();
   }
-  return { lines, health: diagnose(stats), data };
+  return { lines, health: diagnose(stats), data, pages: stats.length };
 }
 
 /** Back-compatible helper for callers that only want the lines. */

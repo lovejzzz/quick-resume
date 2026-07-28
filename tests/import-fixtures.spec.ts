@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Browser, type Page } from "@playwright/test";
 import { mkdir, readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -177,6 +177,85 @@ test.describe("failure diagnosis", () => {
     const path: string = await writeNearEmptyPdf(join(TMP, "near-empty.pdf"));
     const text = await importAndReadError(page, path);
     expect(text).toMatch(/blank/i);
+  });
+});
+
+test.describe("text recognition", () => {
+  /** Rasterises a resume so the PDF has ink but no text layer. */
+  async function makeScan(browser: Browser) {
+    const shot = await browser.newPage({ viewport: { width: 816, height: 1056 } });
+    await shot.setContent(await readFile(join(HERE, "fixtures", "resumes", "classic.html"), "utf8"));
+    const png = await shot.screenshot({ fullPage: true });
+    await shot.close();
+    const embed = await browser.newPage();
+    await embed.setContent(
+      `<body style="margin:0"><img style="width:100%;display:block" src="data:image/png;base64,${png.toString("base64")}"></body>`,
+    );
+    const path = join(TMP, "scan-ocr.pdf");
+    await embed.pdf({ path, format: "Letter", printBackground: true });
+    await embed.close();
+    return path;
+  }
+
+  test("offers recognition for a scan, and reads it", async ({ page, browser }) => {
+    test.slow();
+    const path = await makeScan(browser);
+
+    await page.goto("/");
+    await expect(page.locator(".resume-paper h2")).toBeVisible();
+    await page.getByRole("button", { name: "Content", exact: true }).click();
+    await page.locator(".import-action input[type=file]").setInputFiles(path);
+
+    // The offer states the cost up front rather than downloading silently.
+    const offer = page.locator(".ocr-offer");
+    await expect(offer).toBeVisible({ timeout: 30_000 });
+    await expect(offer).toContainText(/6\.7 MB/);
+    await expect(offer).toContainText(/check the result/i);
+
+    await page.getByRole("button", { name: /^Read /i }).click();
+    await expect(page.locator(".ocr-progress")).toBeVisible({ timeout: 20_000 });
+
+    await expect(page.locator(".import-message")).toBeVisible({ timeout: 180_000 });
+    // Structure survives the round trip through pixels.
+    await expect(page.locator(".resume-paper h2")).toHaveText(/Raghunathan/);
+    await expect(page.locator(".resume-section h3")).not.toHaveCount(0);
+    const bullets = await page.locator(".resume-section li").allTextContents();
+    expect(bullets.some((line) => /nightly ETL/i.test(line))).toBe(true);
+    // Recognised bullet glyphs must not survive as text.
+    expect(bullets.every((line) => !/^[+«»<>~©°*]/.test(line.trim()))).toBe(true);
+  });
+
+  test("quotes the contact details it read so errors are visible", async ({ page, browser }) => {
+    test.slow();
+    const path = await makeScan(browser);
+    await page.goto("/");
+    await expect(page.locator(".resume-paper h2")).toBeVisible();
+    await page.getByRole("button", { name: "Content", exact: true }).click();
+    await page.locator(".import-action input[type=file]").setInputFiles(path);
+    await page.getByRole("button", { name: /^Read /i }).click();
+
+    const message = page.locator(".import-message");
+    await expect(message).toBeVisible({ timeout: 180_000 });
+    // Naming the values is what lets someone spot a confidently-wrong reading.
+    await expect(message).toContainText(/check these character by character/i);
+    await expect(message).toContainText(/Email read as/i);
+  });
+
+  test("recognition can be cancelled", async ({ page, browser }) => {
+    test.slow();
+    const path = await makeScan(browser);
+    await page.goto("/");
+    await expect(page.locator(".resume-paper h2")).toBeVisible();
+    await page.getByRole("button", { name: "Content", exact: true }).click();
+    await page.locator(".import-action input[type=file]").setInputFiles(path);
+    await page.getByRole("button", { name: /^Read /i }).click();
+
+    const progress = page.locator(".ocr-progress");
+    await expect(progress).toBeVisible({ timeout: 20_000 });
+    await progress.getByRole("button", { name: "Cancel" }).click();
+    await expect(page.locator(".import-message.error")).toContainText(/cancelled/i, {
+      timeout: 60_000,
+    });
   });
 });
 

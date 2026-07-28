@@ -2,7 +2,15 @@
  * Kept as the public import surface. The implementation lives in ./import,
  * split by stage: extraction, layout analysis, heading detection, parsing.
  */
-export { importResumeFile, parseLines, linesFromText, type ImportResult } from "./import";
+export {
+  importByOcr,
+  importResumeFile,
+  linesFromText,
+  parseLines,
+  type ImportResult,
+  type OcrRetry,
+} from "./import";
+export type { OcrProgress } from "./import/ocr";
 
 import { linesFromText } from "./import/extract";
 import { parseLines } from "./import/parse";
