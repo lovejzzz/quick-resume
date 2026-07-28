@@ -36,11 +36,19 @@ export type ResumeData = {
   sections: ResumeSection[];
 };
 
+export type ResumeLayout =
+  | "classic"
+  | "modern"
+  | "executive"
+  | "technical"
+  | "academic";
+
 export type ResumeStyle = {
   accent: string;
   font: "modern" | "classic" | "humanist";
   density: "comfortable" | "compact";
   fitLevel: number;
   fontAdjustments: Record<string, number>;
+  layout: ResumeLayout;
   showPhoto: boolean;
 };
