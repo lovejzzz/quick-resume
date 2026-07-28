@@ -2070,6 +2070,10 @@ button {
   transition: padding 120ms ease, font-size 120ms ease, line-height 120ms ease;
 }
 
+.resume-paper.fit-measuring {
+  transition: none;
+}
+
 .resume-paper.font-modern {
   font-family: var(--resume-font-family, Arial, Helvetica, sans-serif);
 }
@@ -3203,6 +3207,11 @@ body {
     min-height: 0;
   }
 
+  .studio-shell::before,
+  .studio-shell::after {
+    display: none;
+  }
+
   .no-print {
     display: none !important;
   }
@@ -3228,7 +3237,7 @@ body {
 
   .resume-paper {
     width: var(--page-width, 816px);
-    min-height: 0;
+    min-height: var(--page-height, 1056px);
     height: auto;
     margin: 0;
     overflow: visible;

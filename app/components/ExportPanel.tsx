@@ -182,11 +182,17 @@ export function ExportPanel({
 
       <button
         className="primary-button"
-        disabled={exporting}
+        disabled={autoFitting || exporting}
         onClick={() => onExport(format, { scale, quality })}
         type="button"
       >
-        {exporting ? "Preparing file…" : format === "pdf" ? "Open PDF export" : `Download ${format.toUpperCase()}`}
+        {autoFitting
+          ? "Finishing Smart Fit…"
+          : exporting
+            ? "Preparing file…"
+            : format === "pdf"
+              ? "Open PDF export"
+              : `Download ${format.toUpperCase()}`}
       </button>
       <p className="fine-print">
         The estimate changes with format, resolution, content, and photos. Final size may vary.

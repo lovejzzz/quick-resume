@@ -68,9 +68,10 @@ npm run lint       # eslint
 npm run typecheck  # tsc --noEmit
 npm run build      # static export into out/
 npm test           # Playwright behaviour tests against the built export
+npm run test:exports # desktop/mobile Chromium/WebKit export matrix
 ```
 
-`npm test` needs a browser once: `npm run test:install`. If your environment
+The Playwright suites need their browsers once: `npm run test:install`. If your environment
 already ships a Chromium that Playwright did not install, point at it with
 `PLAYWRIGHT_CHROMIUM_PATH=/path/to/chromium npm test`.
 

@@ -182,7 +182,7 @@ test.describe("failure diagnosis", () => {
 
 test.describe("text recognition", () => {
   /** Rasterises a resume so the PDF has ink but no text layer. */
-  async function makeScan(browser: Browser) {
+  async function makeScan(browser: Browser, filename: string) {
     const shot = await browser.newPage({ viewport: { width: 816, height: 1056 } });
     await shot.setContent(await readFile(join(HERE, "fixtures", "resumes", "classic.html"), "utf8"));
     const png = await shot.screenshot({ fullPage: true });
@@ -191,7 +191,7 @@ test.describe("text recognition", () => {
     await embed.setContent(
       `<body style="margin:0"><img style="width:100%;display:block" src="data:image/png;base64,${png.toString("base64")}"></body>`,
     );
-    const path = join(TMP, "scan-ocr.pdf");
+    const path = join(TMP, filename);
     await embed.pdf({ path, format: "Letter", printBackground: true });
     await embed.close();
     return path;
@@ -199,7 +199,7 @@ test.describe("text recognition", () => {
 
   test("offers recognition for a scan, and reads it", async ({ page, browser }) => {
     test.slow();
-    const path = await makeScan(browser);
+    const path = await makeScan(browser, "scan-ocr-read.pdf");
 
     await page.goto("/");
     await expect(page.locator(".resume-paper h2")).toBeVisible();
@@ -227,7 +227,7 @@ test.describe("text recognition", () => {
 
   test("quotes the contact details it read so errors are visible", async ({ page, browser }) => {
     test.slow();
-    const path = await makeScan(browser);
+    const path = await makeScan(browser, "scan-ocr-contact.pdf");
     await page.goto("/");
     await expect(page.locator(".resume-paper h2")).toBeVisible();
     await page.getByRole("button", { name: "Content", exact: true }).click();
@@ -243,7 +243,7 @@ test.describe("text recognition", () => {
 
   test("recognition can be cancelled", async ({ page, browser }) => {
     test.slow();
-    const path = await makeScan(browser);
+    const path = await makeScan(browser, "scan-ocr-cancel.pdf");
     await page.goto("/");
     await expect(page.locator(".resume-paper h2")).toBeVisible();
     await page.getByRole("button", { name: "Content", exact: true }).click();

@@ -545,6 +545,7 @@ export default function Home() {
 
   const autoFitToOnePage = async () => {
     setAutoFitting(true);
+    resumeRef.current?.classList.add("fit-measuring");
     try {
       if (await measureAtFitLevel(0)) return;
       if (!(await measureAtFitLevel(100))) return;
@@ -556,7 +557,9 @@ export default function Home() {
         else low = middle;
       }
       setStyle((current) => ({ ...current, fitLevel: high }));
+      await waitForLayout();
     } finally {
+      resumeRef.current?.classList.remove("fit-measuring");
       setAutoFitting(false);
     }
   };
