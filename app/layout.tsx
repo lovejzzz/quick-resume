@@ -16,7 +16,7 @@ const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL ?? "https://tian-resume-studio
   /\/$/,
   "",
 );
-const title = "Quick Resume";
+const title = "Quicky Resume";
 const description =
   "Build a clear, job-ready resume with five research-backed layouts, smart one-page fitting, and PDF, PNG, or JPG export.";
 const socialImage = `${siteUrl}/og.png`;
@@ -29,7 +29,7 @@ export const metadata: Metadata = {
     title,
     description,
     type: "website",
-    images: [{ url: socialImage, width: 1731, height: 909, alt: "Quick Resume and its five professional layouts" }],
+    images: [{ url: socialImage, width: 1731, height: 909, alt: "Quicky Resume and its five professional layouts" }],
   },
   twitter: {
     card: "summary_large_image",

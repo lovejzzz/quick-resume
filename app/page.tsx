@@ -547,7 +547,7 @@ export default function Home() {
           <div className="brand-mark" aria-hidden="true">QR</div>
           <div>
             <p className="eyebrow">Personal workspace</p>
-            <h1>Quick Resume</h1>
+            <h1>Quicky Resume</h1>
           </div>
         </div>
         <div className="save-state">
