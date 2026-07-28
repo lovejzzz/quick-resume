@@ -53,6 +53,7 @@ type ResumeStyle = {
 };
 
 const makeId = () => `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+const PRINT_SAFE_HEIGHT = 1038;
 
 const initialData: ResumeData = {
   name: "Tian Xing",
@@ -384,6 +385,17 @@ export default function Home() {
   const resumeRef = useRef<HTMLDivElement>(null);
   const hydrated = useRef(false);
 
+  const getResumeContentHeight = () => {
+    const paper = resumeRef.current;
+    const body = paper?.querySelector<HTMLElement>(".resume-body");
+    if (!paper || !body) return 0;
+    const paperBox = paper.getBoundingClientRect();
+    const bodyBox = body.getBoundingClientRect();
+    const paperStyle = window.getComputedStyle(paper);
+    const paddingBottom = Number.parseFloat(paperStyle.paddingBottom) || 0;
+    return bodyBox.bottom - paperBox.top + paddingBottom;
+  };
+
   useEffect(() => {
     try {
       const stored = window.localStorage.getItem("tian-resume-studio");
@@ -406,7 +418,8 @@ export default function Home() {
   useEffect(() => {
     const updatePages = () => {
       if (!resumeRef.current) return;
-      setPageCount(Math.max(1, Math.ceil(resumeRef.current.scrollHeight / 1056)));
+      const contentHeight = getResumeContentHeight();
+      setPageCount(contentHeight <= PRINT_SAFE_HEIGHT ? 1 : Math.ceil(contentHeight / PRINT_SAFE_HEIGHT));
     };
     updatePages();
     const observer = new ResizeObserver(updatePages);
@@ -648,6 +661,12 @@ export default function Home() {
 
   const exportResume = async () => {
     if (exportFormat === "pdf") {
+      if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+      await waitForResumeLayout();
+      if (style.fitLevel > 0 && getResumeContentHeight() > PRINT_SAFE_HEIGHT) {
+        await autoFitToOnePage();
+        await waitForResumeLayout();
+      }
       window.print();
       return;
     }
@@ -668,7 +687,7 @@ export default function Home() {
   const measureAtFitLevel = async (fitLevel: number) => {
     setStyle((current) => ({ ...current, fitLevel }));
     await waitForResumeLayout();
-    return Boolean(resumeRef.current && resumeRef.current.scrollHeight <= 1058);
+    return getResumeContentHeight() <= PRINT_SAFE_HEIGHT;
   };
 
   const autoFitToOnePage = async () => {
