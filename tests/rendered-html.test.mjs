@@ -32,7 +32,7 @@ test("server-renders Quicky Resume and its example case", async () => {
   assert.match(html, /<title>Quicky Resume<\/title>/i);
   assert.match(html, /Quicky Resume/);
   assert.match(html, /Built by Tian Xing/);
-  assert.match(html, /v0\.2\.3/);
+  assert.match(html, /v0\.2\.4/);
   assert.match(html, /Changelog/);
   assert.match(html, /Tian Xing/);
   assert.match(html, /Educational Technologist/);
@@ -64,7 +64,7 @@ test("keeps the example data and five layouts separate from the editor", async (
   assert.equal((themes.match(/id: "(classic|modern|executive|technical|academic)"/g) ?? []).length, 5);
   assert.match(page, /Research-backed layouts/);
   assert.match(packageJson, /"name": "quicky-resume"/);
-  assert.match(packageJson, /"version": "0\.2\.3"/);
+  assert.match(packageJson, /"version": "0\.2\.4"/);
 });
 
 test("uses an illustrated brand mark and keeps version history out of resume exports", async () => {
@@ -85,7 +85,8 @@ test("clear all removes editable text while preserving resume structure and pres
   const page = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
 
   assert.match(page, /const clearAllText = \(\) =>/);
-  assert.match(page, /Clear all resume text\? Your sections, styling, and photo will stay in place\./);
+  assert.match(page, /title: "Clear all resume text\?"/);
+  assert.match(page, /Your section names, structure, selected style, and photo will stay in place\./);
   assert.match(page, /sections: current\.sections\.map/);
   assert.match(page, /entries: section\.entries\.map/);
   assert.match(page, /bullets: entry\.bullets\.map\(\(\) => ""\)/);
@@ -104,6 +105,23 @@ test("loads the default example from Content and keeps the preview toolbar minim
     page,
     /<button onClick=\{\(\) => setActiveTab\("export"\)\} type="button">Export<\/button>/,
   );
+});
+
+test("uses branded confirmations and the licensed HVD Peace wordmark", async () => {
+  const [page, styles] = await Promise.all([
+    readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+  ]);
+
+  assert.doesNotMatch(page, /window\.confirm/);
+  assert.doesNotMatch(page, /Personal workspace/);
+  assert.match(page, /className=\{`confirmation-dialog no-print/);
+  assert.match(page, /confirmationDialogRef/);
+  assert.match(page, /dialog\.showModal\(\)/);
+  assert.match(page, /HVD Peace by/);
+  assert.match(styles, /font-family: "HVD Peace"/);
+  assert.match(styles, /HvdPeace-8qEJ\.ttf/);
+  assert.match(styles, /\.confirmation-dialog::backdrop/);
 });
 
 test("saves only on request and warns before leaving with unsaved changes", async () => {

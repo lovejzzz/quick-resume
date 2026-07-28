@@ -96,6 +96,15 @@ type InlineEditProps = {
   value: string;
 };
 
+type ConfirmationRequest = {
+  confirmLabel: string;
+  eyebrow: string;
+  message: string;
+  onConfirm: () => void;
+  title: string;
+  tone: "accent" | "danger";
+};
+
 function InlineEdit({
   as: Tag = "span",
   className,
@@ -192,7 +201,10 @@ export default function Home() {
   const [pageCount, setPageCount] = useState(1);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [saveError, setSaveError] = useState("");
+  const [confirmation, setConfirmation] = useState<ConfirmationRequest | null>(null);
   const resumeRef = useRef<HTMLDivElement>(null);
+  const confirmationDialogRef = useRef<HTMLDialogElement>(null);
+  const confirmationCancelRef = useRef<HTMLButtonElement>(null);
   const hydrated = useRef(false);
   const lastSavedSnapshot = useRef(serializeWorkspace(initialData, initialStyle));
 
@@ -250,6 +262,15 @@ export default function Home() {
     window.addEventListener("beforeunload", warnBeforeLeaving);
     return () => window.removeEventListener("beforeunload", warnBeforeLeaving);
   }, [hasUnsavedChanges]);
+
+  useEffect(() => {
+    if (!confirmation) return;
+    const dialog = confirmationDialogRef.current;
+    if (!dialog) return;
+    if (!dialog.open) dialog.showModal();
+    const focusFrame = window.requestAnimationFrame(() => confirmationCancelRef.current?.focus());
+    return () => window.cancelAnimationFrame(focusFrame);
+  }, [confirmation]);
 
   useEffect(() => {
     const updatePages = () => {
@@ -549,9 +570,19 @@ export default function Home() {
   };
 
   const resetResume = () => {
-    if (!window.confirm("Reset every field and section to the original starter resume?")) return;
-    setData(initialData);
-    setStyle(initialStyle);
+    setConfirmation({
+      confirmLabel: "Reset resume",
+      eyebrow: "Start over",
+      message:
+        "This replaces all content and style settings with the original starter. Your saved copy will not change until you click Save changes.",
+      onConfirm: () => {
+        setActiveText(null);
+        setData(initialData);
+        setStyle(initialStyle);
+      },
+      title: "Reset to the starter?",
+      tone: "danger",
+    });
   };
 
   const saveResume = () => {
@@ -567,38 +598,60 @@ export default function Home() {
   };
 
   const clearAllText = () => {
-    if (!window.confirm("Clear all resume text? Your sections, styling, and photo will stay in place.")) return;
-    setActiveText(null);
-    setData((current) => ({
-      ...current,
-      name: "",
-      headline: "",
-      email: "",
-      phone: "",
-      location: "",
-      portfolio: "",
-      secondaryLink: "",
-      sections: current.sections.map((section) => ({
-        ...section,
-        entries: section.entries.map((entry) => ({
-          ...entry,
-          heading: "",
-          subheading: "",
-          date: "",
-          details: "",
-          bullets: entry.bullets.map(() => ""),
-          ...(entry.link !== undefined ? { link: "" } : {}),
-        })),
-      })),
-    }));
+    setConfirmation({
+      confirmLabel: "Clear all text",
+      eyebrow: "Clear content",
+      message:
+        "Your section names, structure, selected style, and photo will stay in place. You can reload the page to undo this before saving.",
+      onConfirm: () => {
+        setActiveText(null);
+        setData((current) => ({
+          ...current,
+          name: "",
+          headline: "",
+          email: "",
+          phone: "",
+          location: "",
+          portfolio: "",
+          secondaryLink: "",
+          sections: current.sections.map((section) => ({
+            ...section,
+            entries: section.entries.map((entry) => ({
+              ...entry,
+              heading: "",
+              subheading: "",
+              date: "",
+              details: "",
+              bullets: entry.bullets.map(() => ""),
+              ...(entry.link !== undefined ? { link: "" } : {}),
+            })),
+          })),
+        }));
+      },
+      title: "Clear all resume text?",
+      tone: "danger",
+    });
   };
 
   const loadExample = () => {
-    if (!window.confirm("Replace the current resume content with the default example? Your selected style will stay in place.")) {
-      return;
-    }
-    setActiveText(null);
-    setData(initialData);
+    setConfirmation({
+      confirmLabel: "Load example",
+      eyebrow: "Default content",
+      message:
+        "This replaces the current resume content with the Tian Xing example while keeping your selected style. Nothing is saved until you click Save changes.",
+      onConfirm: () => {
+        setActiveText(null);
+        setData(initialData);
+      },
+      title: "Load the example resume?",
+      tone: "accent",
+    });
+  };
+
+  const confirmCurrentAction = () => {
+    const action = confirmation?.onConfirm;
+    setConfirmation(null);
+    action?.();
   };
 
   const waitForResumeLayout = () =>
@@ -643,7 +696,6 @@ export default function Home() {
             </span>
           </div>
           <div className="brand-copy">
-            <p className="eyebrow">Personal workspace</p>
             <div className="brand-title-row">
               <h1>Quicky Resume</h1>
               <span className="creator-credit">Built by Tian Xing</span>
@@ -1383,8 +1435,45 @@ export default function Home() {
         </section>
       </div>
 
+      {confirmation && (
+        <dialog
+          aria-labelledby="confirmation-title"
+          className={`confirmation-dialog no-print tone-${confirmation.tone}`}
+          onCancel={(event) => {
+            event.preventDefault();
+            setConfirmation(null);
+          }}
+          ref={confirmationDialogRef}
+        >
+          <div className="confirmation-heading">
+            <span className="confirmation-symbol" aria-hidden="true">
+              <i />
+              <i />
+            </span>
+            <div>
+              <p className="eyebrow">{confirmation.eyebrow}</p>
+              <h2 id="confirmation-title">{confirmation.title}</h2>
+            </div>
+          </div>
+          <p className="confirmation-message">{confirmation.message}</p>
+          <div className="confirmation-actions">
+            <button
+              className="confirmation-cancel"
+              onClick={() => setConfirmation(null)}
+              ref={confirmationCancelRef}
+              type="button"
+            >
+              Keep editing
+            </button>
+            <button className="confirmation-accept" onClick={confirmCurrentAction} type="button">
+              {confirmation.confirmLabel}
+            </button>
+          </div>
+        </dialog>
+      )}
+
       <details className="version-widget no-print">
-        <summary aria-label="Open the Quicky Resume version 0.2.3 changelog">v0.2.3</summary>
+        <summary aria-label="Open the Quicky Resume version 0.2.4 changelog">v0.2.4</summary>
         <aside className="changelog-card" aria-label="Quicky Resume changelog">
           <div className="changelog-heading">
             <div>
@@ -1393,6 +1482,16 @@ export default function Home() {
             </div>
             <span>Latest</span>
           </div>
+          <section className="changelog-release">
+            <div>
+              <strong>v0.2.4</strong>
+              <time dateTime="2026-07-28">Jul 28, 2026</time>
+            </div>
+            <ul>
+              <li>Branded confirmation dialogs</li>
+              <li>HVD Peace wordmark and simplified header</li>
+            </ul>
+          </section>
           <section className="changelog-release">
             <div>
               <strong>v0.2.3</strong>
@@ -1444,6 +1543,13 @@ export default function Home() {
               <li>Inline editing, smart one-page fit, and exports</li>
             </ul>
           </section>
+          <p className="font-credit">
+            HVD Peace by{" "}
+            <a href="https://www.fontspace.com/hvd-peace-font-f23071" rel="noreferrer" target="_blank">
+              HVD Fonts
+            </a>
+            {" "}· CC BY 3.0
+          </p>
         </aside>
       </details>
     </main>

@@ -1,5 +1,13 @@
 @import "tailwindcss";
 
+@font-face {
+  font-family: "HVD Peace";
+  src: url("/fonts/HvdPeace-8qEJ.ttf") format("truetype");
+  font-display: swap;
+  font-style: normal;
+  font-weight: 400;
+}
+
 :root {
   --ink: #1d2827;
   --muted: #6d7b78;
@@ -152,10 +160,12 @@ button {
 }
 
 .app-header h1 {
-  margin: 1px 0 0;
-  font-size: 17px;
-  line-height: 1.1;
-  letter-spacing: -0.02em;
+  margin: 0;
+  font-family: "HVD Peace", Impact, sans-serif;
+  font-size: 20px;
+  font-weight: 400;
+  line-height: 1;
+  letter-spacing: 0.015em;
 }
 
 .creator-credit {
@@ -277,6 +287,7 @@ button {
   right: 0;
   bottom: calc(100% + 9px);
   width: 288px;
+  max-height: calc(100vh - 100px);
   padding: 18px;
   border: 1px solid #d7dfdc;
   border-radius: 16px;
@@ -284,6 +295,7 @@ button {
   background: rgba(252, 253, 253, 0.98);
   box-shadow: 0 18px 48px rgba(29, 47, 43, 0.17);
   backdrop-filter: blur(18px);
+  overflow-y: auto;
   transform-origin: bottom right;
   animation: changelog-in 150ms ease-out;
 }
@@ -362,6 +374,169 @@ button {
 
 .changelog-release li + li {
   margin-top: 3px;
+}
+
+.font-credit {
+  margin: 11px 0 0;
+  padding-top: 12px;
+  border-top: 1px solid #e2e7e5;
+  color: #89938f;
+  font-size: 8px;
+  line-height: 1.5;
+}
+
+.font-credit a {
+  color: #557873;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.confirmation-dialog {
+  width: min(430px, calc(100vw - 32px));
+  margin: auto;
+  padding: 0;
+  border: 0;
+  border-radius: 20px;
+  color: #283633;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(137, 187, 177, 0.17), transparent 13rem),
+    #fbfcfc;
+  box-shadow: 0 28px 80px rgba(17, 34, 30, 0.3);
+  overflow: hidden;
+  animation: confirmation-in 170ms ease-out;
+}
+
+.confirmation-dialog::backdrop {
+  background: rgba(20, 34, 31, 0.43);
+  backdrop-filter: blur(5px);
+}
+
+@keyframes confirmation-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.confirmation-heading {
+  padding: 24px 24px 15px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.confirmation-heading h2 {
+  margin: 4px 0 0;
+  color: #20302d;
+  font-size: 21px;
+  letter-spacing: -0.035em;
+}
+
+.confirmation-symbol {
+  position: relative;
+  width: 45px;
+  height: 45px;
+  flex: 0 0 45px;
+  display: grid;
+  place-items: center;
+  border-radius: 14px 11px 14px 11px;
+  background: linear-gradient(145deg, #43817b, #245d58);
+  box-shadow: 0 8px 20px rgba(39, 91, 85, 0.2);
+  transform: rotate(-2deg);
+}
+
+.tone-danger .confirmation-symbol {
+  background: linear-gradient(145deg, #a26b63, #754b45);
+  box-shadow: 0 8px 20px rgba(116, 73, 67, 0.2);
+}
+
+.confirmation-symbol::before {
+  width: 21px;
+  height: 25px;
+  border: 2px solid rgba(255, 255, 255, 0.92);
+  border-radius: 6px 6px 8px 6px;
+  content: "";
+}
+
+.confirmation-symbol i {
+  position: absolute;
+  left: 15px;
+  width: 11px;
+  height: 1.5px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.confirmation-symbol i:first-child {
+  top: 17px;
+}
+
+.confirmation-symbol i:last-child {
+  top: 22px;
+  width: 8px;
+}
+
+.confirmation-message {
+  margin: 0;
+  padding: 0 24px 23px;
+  color: #66736f;
+  font-size: 12px;
+  line-height: 1.65;
+}
+
+.confirmation-actions {
+  padding: 15px 18px 18px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  border-top: 1px solid #e2e7e5;
+  background: rgba(243, 247, 246, 0.75);
+}
+
+.confirmation-actions button {
+  min-height: 38px;
+  padding: 0 14px;
+  border-radius: 9px;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 730;
+}
+
+.confirmation-cancel {
+  border: 1px solid #d2dbd8;
+  color: #687572;
+  background: #fbfcfc;
+}
+
+.confirmation-cancel:hover,
+.confirmation-cancel:focus-visible {
+  border-color: #acbdb9;
+  color: #354743;
+  outline: none;
+}
+
+.confirmation-accept {
+  border: 1px solid #2d6963;
+  color: white;
+  background: #2d6963;
+  box-shadow: 0 6px 16px rgba(45, 105, 99, 0.18);
+}
+
+.tone-danger .confirmation-accept {
+  border-color: #895a52;
+  background: #895a52;
+  box-shadow: 0 6px 16px rgba(137, 90, 82, 0.18);
+}
+
+.confirmation-accept:hover,
+.confirmation-accept:focus-visible {
+  filter: brightness(0.93);
+  outline: none;
 }
 
 .workspace {
