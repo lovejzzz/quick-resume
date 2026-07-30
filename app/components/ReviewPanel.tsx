@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { analyseJobMatch, resumeCorpus } from "../lib/ats";
 import { summariseReview } from "../lib/coach";
 import { buildPreflight, type PreflightTarget } from "../lib/preflight";
@@ -8,13 +8,21 @@ import type { ResumeData, ResumeStyle } from "../lib/resume-model";
 
 export type ReviewPanelProps = {
   data: ResumeData;
+  jobDescription: string;
+  onJobDescriptionChange: (value: string) => void;
   onNavigate: (target: PreflightTarget) => void;
   pageCount: number;
   style: ResumeStyle;
 };
 
-export function ReviewPanel({ data, onNavigate, pageCount, style }: ReviewPanelProps) {
-  const [jobDescription, setJobDescription] = useState("");
+export function ReviewPanel({
+  data,
+  jobDescription,
+  onJobDescriptionChange,
+  onNavigate,
+  pageCount,
+  style,
+}: ReviewPanelProps) {
   const match = useMemo(
     () => (jobDescription.trim() ? analyseJobMatch(jobDescription, data) : null),
     [data, jobDescription],
@@ -70,8 +78,8 @@ export function ReviewPanel({ data, onNavigate, pageCount, style }: ReviewPanelP
             Job description <small>Paste the posting to check prominent terms</small>
           </span>
           <textarea
-            onChange={(event) => setJobDescription(event.target.value)}
-            placeholder="Paste the full job posting here. It stays in this browser."
+            onChange={(event) => onJobDescriptionChange(event.target.value)}
+            placeholder="Paste the full job posting here. It stays in this editing session."
             rows={6}
             value={jobDescription}
           />
