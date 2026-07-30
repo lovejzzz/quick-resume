@@ -11,6 +11,15 @@ export const appVersion: string = packageJson.version;
 
 export const releases: Release[] = [
   {
+    version: "0.3.4",
+    date: "2026-07-30",
+    notes: [
+      "Final Review separates objective blockers from optional rule-based suggestions",
+      "Job-posting terms use a literal comparison with no fit score or AI claims",
+      "Clearer ATS-readable text preview and review-language disclosures",
+    ],
+  },
+  {
     version: "0.3.3",
     date: "2026-07-30",
     notes: [

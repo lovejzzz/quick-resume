@@ -20,7 +20,7 @@ declare global {
   }
 }
 
-const TABS = ["Content", "Style", "Check", "Export"] as const;
+const TABS = ["Content", "Style", "Review", "Export"] as const;
 const VIEWPORTS = [
   { width: 1440, height: 900, label: "desktop" },
   { width: 390, height: 844, label: "mobile" },

@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { tianXingExample } from "../app/examples/tian-xing";
-import { analyseJobMatch } from "../app/lib/ats";
+import { compareJobTerms } from "../app/lib/ats";
 import { summariseReview } from "../app/lib/coach";
 import { judgeAccent } from "../app/lib/contrast";
 import { getOcrPagePlan, parseResumeLines } from "../app/lib/import-resume";
@@ -93,11 +93,12 @@ test.describe("storage migration", () => {
 
 test.describe("private application checks", () => {
   test("finds prominent missing job terms", () => {
-    const report = analyseJobMatch(
+    const report = compareJobTerms(
       "WebGPU prototyping and accessibility testing. WebGPU prototyping is required.",
       tianXingExample,
     );
     expect(report.missing.some((hit) => hit.term.includes("webgpu"))).toBe(true);
+    expect(report).not.toHaveProperty("score");
   });
 
   test("coaches weak bullets and builds export preflight", () => {
@@ -122,7 +123,11 @@ test.describe("private application checks", () => {
       ],
     };
     expect(summariseReview(data).findings.some((finding) => finding.rule === "weak-opener")).toBe(true);
-    expect(buildPreflight(tianXingExample, defaultStyle, 2).some((item) => item.id === "pages" && item.level === "warning")).toBe(true);
+    expect(
+      buildPreflight(tianXingExample, defaultStyle, 2).some(
+        (item) => item.id === "pages" && item.level === "warning" && item.category === "review",
+      ),
+    ).toBe(true);
   });
 });
 
