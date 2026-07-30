@@ -243,7 +243,7 @@ export function StylePanel({
       </div>
 
       <button className="secondary-button" onClick={onReset} type="button">
-        Reset starter content
+        Reset to Tian Xing example
       </button>
     </section>
   );

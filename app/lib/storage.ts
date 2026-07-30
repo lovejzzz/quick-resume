@@ -14,7 +14,12 @@ import {
 import { getResumeTheme } from "./resume-themes";
 
 export const STORAGE_KEY = "quick-resume";
+export const RECOVERY_KEY = "quick-resume:recovery";
+export const CORRUPT_KEY = "quick-resume:unreadable";
 export const SCHEMA_VERSION = 2;
+const MAX_BACKUP_BYTES = 25 * 1024 * 1024;
+const MAX_DOCUMENTS = 50;
+const MAX_PHOTO_CHARACTERS = 5 * 1024 * 1024;
 
 export type Workspace = {
   activeId: string;
@@ -100,6 +105,12 @@ function coerceSection(value: unknown): ResumeSection {
 export function coerceResumeData(value: unknown): ResumeData {
   const raw = isObject(value) ? value : {};
   const sections = Array.isArray(raw.sections) ? raw.sections.map(coerceSection) : [];
+  const rawPhoto = asString(raw.photo);
+  const photo =
+    rawPhoto.length <= MAX_PHOTO_CHARACTERS &&
+    /^data:image\/(?:png|jpe?g|webp);base64,[a-z0-9+/=\s]+$/i.test(rawPhoto)
+      ? rawPhoto
+      : "";
   return {
     name: asString(raw.name),
     headline: asString(raw.headline),
@@ -108,7 +119,9 @@ export function coerceResumeData(value: unknown): ResumeData {
     location: asString(raw.location),
     portfolio: asString(raw.portfolio),
     secondaryLink: asString(raw.secondaryLink),
-    photo: asString(raw.photo),
+    // Backups are user-controlled input. Never allow a crafted backup to turn
+    // the resume photo into a third-party network request.
+    photo,
     sections,
   };
 }
@@ -197,7 +210,7 @@ export function migrateWorkspace(value: unknown): Workspace {
   }
 
   const documents = Array.isArray(value.documents)
-    ? value.documents.map(coerceDocument)
+    ? value.documents.slice(0, MAX_DOCUMENTS).map(coerceDocument)
     : [];
   if (!documents.length) return starterWorkspace();
 
@@ -212,12 +225,20 @@ export function migrateWorkspace(value: unknown): Workspace {
 
 export function loadWorkspace(): Workspace {
   if (typeof window === "undefined") return starterWorkspace();
+  const stored = window.localStorage.getItem(STORAGE_KEY);
+  if (!stored) return starterWorkspace();
   try {
-    const stored = window.localStorage.getItem(STORAGE_KEY);
-    if (!stored) return starterWorkspace();
     return migrateWorkspace(JSON.parse(stored));
   } catch {
-    // Unreadable storage (private mode, quota, corruption) is not fatal.
+    // Keep the unreadable payload available for recovery instead of silently
+    // replacing the only copy with the starter.
+    try {
+      window.localStorage.setItem(CORRUPT_KEY, stored);
+      const recovery = window.localStorage.getItem(RECOVERY_KEY);
+      if (recovery) return migrateWorkspace(JSON.parse(recovery));
+    } catch {
+      // Storage may itself be blocked; the editor still needs to open.
+    }
     return starterWorkspace();
   }
 }
@@ -226,10 +247,17 @@ export type SaveResult = { ok: true } | { ok: false; reason: string };
 
 export function saveWorkspace(workspace: Workspace): SaveResult {
   try {
-    window.localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify({ version: SCHEMA_VERSION, ...workspace }),
-    );
+    const serialized = JSON.stringify({ version: SCHEMA_VERSION, ...workspace });
+    const previous = window.localStorage.getItem(STORAGE_KEY);
+    if (previous && previous !== serialized) {
+      try {
+        window.localStorage.setItem(RECOVERY_KEY, previous);
+      } catch {
+        // A recovery snapshot is best effort; failing to rotate it must not
+        // prevent the current document from being saved.
+      }
+    }
+    window.localStorage.setItem(STORAGE_KEY, serialized);
     return { ok: true };
   } catch (error) {
     const isQuota =
@@ -269,27 +297,46 @@ export type ParsedBackup =
   | { ok: false; reason: string };
 
 export function parseBackup(text: string): ParsedBackup {
+  if (new Blob([text]).size > MAX_BACKUP_BYTES) {
+    return { ok: false, reason: "That backup is too large to open safely in this browser." };
+  }
   let parsed: unknown;
   try {
     parsed = JSON.parse(text);
   } catch {
     return { ok: false, reason: "That file is not valid JSON." };
   }
-  if (!isObject(parsed)) {
+  if (!isObject(parsed) && !Array.isArray(parsed)) {
     return { ok: false, reason: "That file does not contain a resume backup." };
   }
 
   // Accept a full backup, a bare document list, or a single exported resume.
-  const rawDocuments = Array.isArray(parsed.documents)
-    ? parsed.documents
-    : Array.isArray(parsed)
+  if (isObject(parsed) && "kind" in parsed && parsed.kind !== "quicky-resume-backup") {
+    return { ok: false, reason: "That file belongs to a different application." };
+  }
+  if (
+    isObject(parsed) &&
+    typeof parsed.version === "number" &&
+    parsed.version > SCHEMA_VERSION
+  ) {
+    return {
+      ok: false,
+      reason: "This backup was created by a newer version of Quicky Resume. Update the app before restoring it.",
+    };
+  }
+  const rawDocuments = Array.isArray(parsed)
       ? parsed
-      : "data" in parsed
+      : Array.isArray(parsed.documents)
+        ? parsed.documents
+        : "data" in parsed
         ? [parsed]
         : null;
 
   if (!rawDocuments || !rawDocuments.length) {
     return { ok: false, reason: "No resumes were found in that file." };
+  }
+  if (rawDocuments.length > MAX_DOCUMENTS) {
+    return { ok: false, reason: `That backup contains more than ${MAX_DOCUMENTS} resumes.` };
   }
   return {
     ok: true,

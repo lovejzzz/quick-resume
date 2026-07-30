@@ -10,6 +10,7 @@ export type ExportFormat = "png" | "jpg" | "pdf";
 export type ExportPanelProps = {
   autoFitting: boolean;
   data: ResumeData;
+  exportError: string;
   exporting: boolean;
   onAutoFit: () => void;
   onExport: (format: ExportFormat, options: { scale: number; quality: number }) => void;
@@ -23,6 +24,7 @@ export type ExportPanelProps = {
 export function ExportPanel({
   autoFitting,
   data,
+  exportError,
   exporting,
   onAutoFit,
   onExport,
@@ -113,13 +115,30 @@ export function ExportPanel({
             ["png", "PNG", "Sharp image"],
             ["jpg", "JPG", "Smaller image"],
           ] as const
-        ).map(([value, label, note]) => (
+        ).map(([value, label, note], index, formats) => (
           <button
             aria-checked={format === value}
             className={format === value ? "format-card selected" : "format-card"}
             key={value}
+            onKeyDown={(event) => {
+              const direction =
+                event.key === "ArrowRight" || event.key === "ArrowDown"
+                  ? 1
+                  : event.key === "ArrowLeft" || event.key === "ArrowUp"
+                    ? -1
+                    : 0;
+              if (!direction) return;
+              event.preventDefault();
+              const nextIndex = (index + direction + formats.length) % formats.length;
+              setFormat(formats[nextIndex][0]);
+              const buttons = event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>(
+                '[role="radio"]',
+              );
+              buttons?.[nextIndex]?.focus();
+            }}
             onClick={() => setFormat(value)}
             role="radio"
+            tabIndex={format === value ? 0 : -1}
             type="button"
           >
             <strong>{label}</strong>
@@ -194,6 +213,7 @@ export function ExportPanel({
               ? "Open PDF export"
               : `Download ${format.toUpperCase()}`}
       </button>
+      {exportError && <p className="import-message error" role="alert">{exportError}</p>}
       <p className="fine-print">
         The estimate changes with format, resolution, content, and photos. Final size may vary.
       </p>

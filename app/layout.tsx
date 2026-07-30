@@ -99,6 +99,13 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
+      <head>
+        <meta
+          content="default-src 'self'; base-uri 'self'; object-src 'none'; form-action 'self'; img-src 'self' data: blob:; font-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; worker-src 'self' blob:; connect-src 'self'; media-src 'self' blob:"
+          httpEquiv="Content-Security-Policy"
+        />
+        <meta content="no-referrer" name="referrer" />
+      </head>
       <body className={`${geistSans.variable} ${hvdPeace.variable} ${resumeFontVariables}`}>
         {children}
         <ServiceWorker />

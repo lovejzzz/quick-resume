@@ -36,12 +36,11 @@ test.describe("editor shell", () => {
     await expect(page.locator(".resume-section")).not.toHaveCount(0);
   });
 
-  test("exposes all three editor tabs", async ({ page }) => {
+  test("exposes the complete editing workflow", async ({ page }) => {
     await openEditor(page);
-    for (const tab of ["Content", "Style", "Export"]) {
+    for (const tab of ["Content", "Style", "Check", "Export"]) {
       await expect(page.getByRole("button", { name: tab, exact: true })).toBeVisible();
     }
-    await expect(page.getByRole("button", { name: "Review", exact: true })).toHaveCount(0);
   });
 
   test("skip link moves focus to the preview", async ({ page }) => {
@@ -142,13 +141,28 @@ test.describe("persistence", () => {
     await page.keyboard.type("Katherine Johnson");
     await name.blur();
 
-    const save = page.getByRole("button", { name: /save changes/i });
+    const save = page.getByRole("button", { name: /save now/i });
     await expect(save).toBeEnabled();
     await save.click();
-    await expect(page.getByRole("button", { name: /^saved$/i })).toBeVisible();
+    await expect(page.getByRole("button", { name: /saved on device/i })).toBeVisible();
 
     await page.reload();
     await expect(page.locator(".resume-paper h2")).toHaveText("Katherine Johnson");
+  });
+
+  test("autosaves edits on this device", async ({ page }) => {
+    await openEditor(page);
+    const name = page.locator(".resume-paper h2");
+    await name.click();
+    await page.keyboard.press("ControlOrMeta+a");
+    await page.keyboard.type("Dorothy Vaughan");
+    await name.blur();
+    await expect(page.getByRole("button", { name: /save now/i })).toBeVisible();
+    await expect(page.getByRole("button", { name: /saved on device/i })).toBeVisible({
+      timeout: 5_000,
+    });
+    await page.reload();
+    await expect(page.locator(".resume-paper h2")).toHaveText("Dorothy Vaughan");
   });
 
   test("does not flash the starter resume before saved content appears", async ({ page }) => {
@@ -208,6 +222,43 @@ test.describe("persistence", () => {
     });
     await page.goto("/");
     await expect(page.locator(".resume-paper h2")).toHaveText("Legacy User");
+  });
+});
+
+test.describe("resume workflow", () => {
+  test("keeps the Tian Xing example by default and offers choices only after New", async ({ page }) => {
+    await openEditor(page);
+    await expect(page.locator(".resume-paper")).toContainText("Tian Xing");
+    await expect(page.getByText("Start a new resume")).toHaveCount(0);
+
+    await page.getByRole("button", { name: /switch resume/i }).click();
+    await page.getByRole("button", { name: "+ New", exact: true }).click();
+    await expect(page.getByText("Start a new resume")).toBeVisible();
+    await expect(page.getByRole("button", { name: /blank resume/i })).toBeVisible();
+    await expect(page.getByText(/processed on this device/i)).toBeVisible();
+  });
+
+  test("checks a job description and shows the ATS reading order", async ({ page }) => {
+    await openEditor(page);
+    await page.getByRole("button", { name: "Check", exact: true }).click();
+    await page.getByLabel(/job description/i).fill(
+      "We need a learning experience designer with learning experience design and WebGPU prototyping. WebGPU prototyping is essential.",
+    );
+    await expect(page.getByText(/keyword coverage/i)).toBeVisible();
+    await expect(page.locator(".keyword.missing").filter({ hasText: /webgpu prototyping/i })).toBeVisible();
+    await page.getByText(/preview the text an ATS can read/i).click();
+    await expect(page.locator(".ats-preview pre")).toContainText("Tian Xing");
+  });
+
+  test("uses focused Edit and Preview surfaces on mobile", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/");
+    await expect(page.getByRole("heading", { level: 1, name: "Quicky Resume" })).toBeVisible();
+    await expect(page.locator(".editor-panel")).toBeVisible();
+    await expect(page.locator(".preview-stage")).toBeHidden();
+    await page.getByRole("button", { name: "Preview", exact: true }).click();
+    await expect(page.locator(".preview-stage")).toBeVisible();
+    await expect(page.locator(".editor-panel")).toBeHidden();
   });
 });
 

@@ -11,6 +11,17 @@ export const appVersion: string = packageJson.version;
 
 export const releases: Release[] = [
   {
+    version: "0.3.1",
+    date: "2026-07-30",
+    notes: [
+      "Visible multi-resume switcher with New, import, duplicate, and backup actions",
+      "Private job matching, bullet coaching, ATS text preview, and application preflight",
+      "Focused Edit and Preview modes on mobile, with visible page-break guidance",
+      "Autosave on this device, recovery snapshots, and cross-tab conflict protection",
+      "Safer imports, backups, exports, offline upgrades, deployment, and production monitoring",
+    ],
+  },
+  {
     version: "0.3.0",
     date: "2026-07-28",
     notes: [

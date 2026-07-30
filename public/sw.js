@@ -18,17 +18,14 @@ const CACHE_VERSION = `${CACHE_NAMESPACE}:__CACHE_VERSION__`;
 const LEGACY_CACHE_NAMES = new Set(["quicky-resume-v1"]);
 
 self.addEventListener("install", (event) => {
-  // Activate immediately rather than waiting for every other tab to close.
-  self.skipWaiting();
   event.waitUntil(
     (async () => {
       const cache = await caches.open(CACHE_VERSION);
-      // One failed entry must not abort the whole install.
-      await Promise.all(
-        PRECACHE.map((url) =>
-          cache.add(new Request(url, { cache: "reload" })).catch(() => undefined),
-        ),
-      );
+      // An incomplete replacement is worse than an older complete offline
+      // release. Fail the install atomically and keep the active worker/cache
+      // when any required shell asset cannot be fetched.
+      await cache.addAll(PRECACHE.map((url) => new Request(url, { cache: "reload" })));
+      await self.skipWaiting();
     })(),
   );
 });

@@ -12,15 +12,29 @@ const RED_PHOTO =
 async function openEditor(page: Page) {
   await page.goto("/");
   await expect(page.getByRole("heading", { level: 1, name: "Quicky Resume" })).toBeVisible();
+  await showEdit(page);
+  await expect(page.getByRole("button", { exact: true, name: "Style" })).toBeVisible();
+}
+
+async function showEdit(page: Page) {
+  const edit = page.getByRole("button", { exact: true, name: "Edit" });
+  if (await edit.isVisible()) await edit.click();
+}
+
+async function showPreview(page: Page) {
+  const preview = page.getByRole("button", { exact: true, name: "Preview" });
+  if (await preview.isVisible()) await preview.click();
   await expect(page.locator(".resume-paper h2")).toBeVisible();
 }
 
 async function openExport(page: Page) {
+  await showEdit(page);
   await page.getByRole("button", { exact: true, name: "Export" }).click();
   await expect(page.getByRole("heading", { name: "Download your resume" })).toBeVisible();
 }
 
 async function choosePageSize(page: Page, size: "A4" | "US Letter") {
+  await showEdit(page);
   await page.getByRole("button", { exact: true, name: "Style" }).click();
   const choice = page.getByRole("button", { name: new RegExp(`^${size}`) });
   await expect(choice).toHaveCount(1);
@@ -34,7 +48,9 @@ async function smartFitOnePage(page: Page) {
   // Let React commit the busy state before waiting for the completed state;
   // otherwise a fast browser can observe the transient 100% measurement.
   await page.waitForTimeout(100);
-  await expect(fitButton).toBeEnabled({ timeout: 20_000 });
+  await expect(page.locator(".workspace")).toHaveAttribute("aria-busy", "false", { timeout: 20_000 });
+  await showEdit(page);
+  await expect(fitButton).toBeEnabled();
   await expect(page.locator(".fit-status")).toContainText(/fits one/i, { timeout: 20_000 });
 }
 
@@ -82,6 +98,7 @@ async function inspectPdf(path: string, expected: { height: number; width: numbe
 test("downloads correctly sized Letter PNG and A4 JPG files", async ({ page }, testInfo) => {
   await openEditor(page);
 
+  await showPreview(page);
   const letterPaper = await page.locator(".resume-paper").evaluate((element) => ({
     height: (element as HTMLElement).offsetHeight,
     width: (element as HTMLElement).offsetWidth,
@@ -96,6 +113,7 @@ test("downloads correctly sized Letter PNG and A4 JPG files", async ({ page }, t
   expect(letterMetadata.height).toBeGreaterThanOrEqual(letter.heightPx * 2);
 
   await choosePageSize(page, "A4");
+  await showPreview(page);
   const a4Paper = await page.locator(".resume-paper").evaluate((element) => ({
     height: (element as HTMLElement).offsetHeight,
     width: (element as HTMLElement).offsetWidth,
@@ -167,6 +185,7 @@ test("exports persistent text runaround after a photo drag", async ({ page }, te
     ] as const,
   );
   await openEditor(page);
+  await showPreview(page);
 
   const photo = page.locator(".resume-photo");
   const identity = page.locator(".resume-identity");

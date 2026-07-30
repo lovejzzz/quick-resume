@@ -1,0 +1,44 @@
+name: Bug report
+description: Report reproducible behavior in the editor, import, storage, or export.
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: Do not attach a real resume. Use a redacted or synthetic example.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What happened?
+      description: Describe the behavior and what you expected.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Reproduction steps
+      placeholder: "1. Open…\n2. Choose…\n3. Observe…"
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Browser and device
+      placeholder: Safari 18 on iPhone 15
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Content editing
+        - Import or OCR
+        - Check and job matching
+        - Style and layout
+        - Saving or backup
+        - PDF or image export
+        - Offline installation
+        - Accessibility
+    validations:
+      required: true

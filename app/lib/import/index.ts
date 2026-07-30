@@ -31,6 +31,9 @@ const isDocx = (file: File) =>
   file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
   /\.docx$/i.test(file.name);
 const isText = (file: File) => file.type.startsWith("text/") || /\.(txt|md|markdown)$/i.test(file.name);
+const MAX_PDF_BYTES = 25 * 1024 * 1024;
+const MAX_DOCX_BYTES = 10 * 1024 * 1024;
+const MAX_TEXT_BYTES = 2 * 1024 * 1024;
 
 
 /**
@@ -56,6 +59,9 @@ export async function importResumeFile(file: File): Promise<ImportResult> {
     let partialNote = "";
 
     if (isPdf(file)) {
+      if (file.size > MAX_PDF_BYTES) {
+        return { ok: false, reason: "That PDF is over 25 MB. Export a smaller copy and try again." };
+      }
       const extraction = await extractPdf(file);
       const { health } = extraction;
 
@@ -82,9 +88,15 @@ export async function importResumeFile(file: File): Promise<ImportResult> {
       }
       if (health.kind === "partial") partialNote = explain(health);
     } else if (isDocx(file)) {
+      if (file.size > MAX_DOCX_BYTES) {
+        return { ok: false, reason: "That Word file is over 10 MB. Remove large images or export it as a PDF." };
+      }
       lines = await extractDocxLines(file);
       if (!lines.length) return { ok: false, reason: "That Word file appears to be empty." };
     } else if (isText(file)) {
+      if (file.size > MAX_TEXT_BYTES) {
+        return { ok: false, reason: "That text file is over 2 MB and is too large for a resume import." };
+      }
       lines = linesFromText(await file.text());
       if (!lines.length) return { ok: false, reason: "That file is empty." };
     } else if (/\.docx?$/i.test(file.name)) {
@@ -108,6 +120,12 @@ export async function importResumeFile(file: File): Promise<ImportResult> {
       summary,
     };
   } catch (error) {
+    if (error instanceof Error && error.message === "PDF_PAGE_LIMIT") {
+      return { ok: false, reason: "That PDF has more than 50 pages. Import a resume-length extract instead." };
+    }
+    if (error instanceof Error && error.message === "DOCX_EXPANSION_LIMIT") {
+      return { ok: false, reason: "That Word file expands beyond the safe import limit." };
+    }
     const detail = error instanceof Error && /ZIP|document\.xml/i.test(error.message)
       ? " That Word file could not be opened."
       : "";

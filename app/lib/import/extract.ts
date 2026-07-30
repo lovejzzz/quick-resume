@@ -36,6 +36,7 @@ const WORD_GAP_RATIO = 0.2;
 
 /** Lines whose baselines are closer than this share a visual row. */
 const ROW_TOLERANCE_RATIO = 0.55;
+const MAX_PDF_PAGES = 50;
 
 function median(values: number[]): number {
   if (!values.length) return 0;
@@ -241,6 +242,10 @@ export async function extractPdf(file: File): Promise<PdfExtraction> {
   // pdf.js takes ownership of the buffer it is given, so hand it a copy and
   // keep the original for a possible OCR pass.
   const document = await pdfjs.getDocument({ data: data.slice(0) }).promise;
+  if (document.numPages > MAX_PDF_PAGES) {
+    await document.destroy();
+    throw new Error("PDF_PAGE_LIMIT");
+  }
   const lines: TextLine[] = [];
   const stats: PageStats[] = [];
 
