@@ -113,7 +113,7 @@ test.describe("photo placement", () => {
     await page.mouse.move(photoBox.x + photoBox.width / 2, photoBox.y + photoBox.height / 2);
     await page.mouse.down();
     await page.mouse.move(
-      identityBox.x + identityBox.width * 0.28,
+      identityBox.x + Math.min(identityBox.width * 0.1, 40),
       identityBox.y + Math.min(identityBox.height / 2, 30),
       { steps: 8 },
     );

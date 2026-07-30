@@ -11,7 +11,7 @@ export const tianXingExample: ResumeData = {
   name: "Tian Xing",
   headline: "Educational Technologist | Learning Experience Designer",
   email: "tx845@nyu.edu",
-  phone: "(551) 414-5977",
+  phone: "",
   location: "",
   portfolio: "xingpicture.myportfolio.com",
   secondaryLink: "ins: xing_tian_lifeitself",
