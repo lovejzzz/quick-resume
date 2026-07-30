@@ -11,6 +11,14 @@ export const appVersion: string = packageJson.version;
 
 export const releases: Release[] = [
   {
+    version: "0.3.3",
+    date: "2026-07-30",
+    notes: [
+      "Transform-independent page measurement across desktop and mobile transitions",
+      "Verified mobile preflight and PDF output after responsive layout changes",
+    ],
+  },
+  {
     version: "0.3.2",
     date: "2026-07-30",
     notes: [

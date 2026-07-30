@@ -90,14 +90,14 @@ export default function Home() {
     const paper = resumeRef.current;
     const body = paper?.querySelector<HTMLElement>(".resume-body");
     if (!paper || !body) return 0;
-    const paperBox = paper.getBoundingClientRect();
-    const bodyBox = body.getBoundingClientRect();
-    const photoBox = photoRef.current?.getBoundingClientRect();
     const paperStyle = window.getComputedStyle(paper);
     const paddingBottom = Number.parseFloat(paperStyle.paddingBottom) || 0;
-    const scale = paper.offsetWidth / paperBox.width || 1;
-    const bodyBottom = (bodyBox.bottom - paperBox.top) * scale + paddingBottom;
-    const photoBottom = photoBox ? (photoBox.bottom - paperBox.top) * scale : 0;
+    // offset geometry is independent of the preview's responsive transform.
+    // Screen rectangles can briefly retain a desktop scale during a mobile
+    // reload and incorrectly certify a two-page resume as one page.
+    const bodyBottom = body.offsetTop + body.offsetHeight + paddingBottom;
+    const photo = photoRef.current;
+    const photoBottom = photo ? photo.offsetTop + photo.offsetHeight : 0;
     return Math.max(bodyBottom, photoBottom);
   }, []);
 

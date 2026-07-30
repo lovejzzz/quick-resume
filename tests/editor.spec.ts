@@ -256,8 +256,9 @@ test.describe("resume workflow", () => {
   });
 
   test("uses focused Edit and Preview surfaces on mobile", async ({ page }) => {
+    await openEditor(page);
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto("/");
+    await page.reload();
     await expect(page.getByRole("heading", { level: 1, name: "Quicky Resume" })).toBeVisible();
     await expect(page.locator(".editor-panel")).toBeVisible();
     await expect(page.locator(".preview-stage")).toBeHidden();
