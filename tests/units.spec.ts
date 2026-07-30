@@ -1,8 +1,12 @@
 import { expect, test } from "@playwright/test";
+import { tianXingExample } from "../app/examples/tian-xing";
+import { analyseJobMatch } from "../app/lib/ats";
+import { summariseReview } from "../app/lib/coach";
 import { judgeAccent } from "../app/lib/contrast";
 import { getOcrPagePlan, parseResumeLines } from "../app/lib/import-resume";
 import { getPageGeometry } from "../app/lib/page-size";
-import { coerceResumeStyle, migrateWorkspace, parseBackup } from "../app/lib/storage";
+import { buildPreflight } from "../app/lib/preflight";
+import { coerceResumeData, coerceResumeStyle, defaultStyle, migrateWorkspace, parseBackup } from "../app/lib/storage";
 
 /** Pure-function coverage for storage, layout, import, and contrast logic. */
 
@@ -66,6 +70,59 @@ test.describe("storage migration", () => {
     const result = parseBackup("{not json");
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.reason).toMatch(/valid JSON/i);
+  });
+
+  test("accepts a historical bare document array and rejects future backups", () => {
+    expect(parseBackup(JSON.stringify([{ data: { name: "Array", sections: [] } }]))).toMatchObject({
+      ok: true,
+    });
+    const future = parseBackup(
+      JSON.stringify({ kind: "quicky-resume-backup", version: 999, documents: [{}] }),
+    );
+    expect(future.ok).toBe(false);
+    if (!future.ok) expect(future.reason).toMatch(/newer version/i);
+  });
+
+  test("strips remote photo sources from untrusted backup data", () => {
+    expect(coerceResumeData({ photo: "https://tracker.example/pixel", sections: [] }).photo).toBe("");
+    expect(
+      coerceResumeData({ photo: "data:image/png;base64,aGVsbG8=", sections: [] }).photo,
+    ).toMatch(/^data:image\/png/);
+  });
+});
+
+test.describe("private application checks", () => {
+  test("finds prominent missing job terms", () => {
+    const report = analyseJobMatch(
+      "WebGPU prototyping and accessibility testing. WebGPU prototyping is required.",
+      tianXingExample,
+    );
+    expect(report.missing.some((hit) => hit.term.includes("webgpu"))).toBe(true);
+  });
+
+  test("coaches weak bullets and builds export preflight", () => {
+    const data = {
+      ...tianXingExample,
+      sections: [
+        {
+          id: "experience",
+          kind: "experience" as const,
+          title: "Experience",
+          entries: [
+            {
+              id: "entry",
+              heading: "Designer",
+              subheading: "Studio",
+              date: "2024",
+              details: "",
+              bullets: ["Responsible for projects"],
+            },
+          ],
+        },
+      ],
+    };
+    expect(summariseReview(data).findings.some((finding) => finding.rule === "weak-opener")).toBe(true);
+    expect(buildPreflight(tianXingExample, defaultStyle, 2).some((item) => item.id === "pages" && item.level === "warning")).toBe(true);
   });
 });
 

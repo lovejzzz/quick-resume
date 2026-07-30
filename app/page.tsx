@@ -11,17 +11,20 @@ import {
 } from "react";
 import { ConfirmationDialog, type ConfirmationRequest } from "./components/ConfirmationDialog";
 import { ContentPanel } from "./components/ContentPanel";
+import { DocumentSwitcher } from "./components/DocumentSwitcher";
 import { ExportPanel, type ExportFormat } from "./components/ExportPanel";
+import { ReviewPanel } from "./components/ReviewPanel";
 import { ResumePaper, type ActiveText } from "./components/ResumePaper";
 import { StylePanel } from "./components/StylePanel";
 import { VersionWidget } from "./components/VersionWidget";
 import { useWorkspace } from "./hooks/useWorkspace";
 import { PHOTO_GAP, PHOTO_SIZE, safeFilename } from "./lib/fit";
 import { getPageGeometry } from "./lib/page-size";
+import { importResumeFile } from "./lib/import-resume";
 import { tianXingExample } from "./examples/tian-xing";
 import type { ResumeData, ResumeEntry, ResumeLayout, ResumeSection } from "./lib/resume-model";
 import { getResumeTheme } from "./lib/resume-themes";
-import { defaultStyle } from "./lib/storage";
+import { createDocument, defaultStyle } from "./lib/storage";
 
 type PhotoDragSession = {
   frame: number | null;
@@ -35,9 +38,9 @@ type PhotoDragSession = {
   y: number;
 };
 
-type Tab = "content" | "style" | "export";
+type Tab = "content" | "style" | "review" | "export";
 
-const TABS: Tab[] = ["content", "style", "export"];
+const TABS: Tab[] = ["content", "style", "review", "export"];
 
 export default function Home() {
   const workspace = useWorkspace();
@@ -47,6 +50,7 @@ export default function Home() {
 
   const [activeTab, setActiveTab] = useState<Tab>("style");
   const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState("");
   const [autoFitting, setAutoFitting] = useState(false);
   const [photoError, setPhotoError] = useState("");
   const [draggingPhoto, setDraggingPhoto] = useState(false);
@@ -54,6 +58,7 @@ export default function Home() {
   const [activeText, setActiveText] = useState<ActiveText | null>(null);
   const [pageCount, setPageCount] = useState(1);
   const [confirmation, setConfirmation] = useState<ConfirmationRequest | null>(null);
+  const [mobileSurface, setMobileSurface] = useState<"editor" | "preview">("editor");
 
   const resumeRef = useRef<HTMLDivElement>(null);
   const editorScrollRef = useRef<HTMLDivElement>(null);
@@ -334,6 +339,16 @@ export default function Home() {
     const file = input.files?.[0];
     if (!file) return;
     setPhotoError("");
+    if (!/^image\/(?:png|jpe?g|webp)$/i.test(file.type)) {
+      setPhotoError("Choose a PNG, JPG, or WebP image.");
+      input.value = "";
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      setPhotoError("That photo is over 10 MB. Choose a smaller image.");
+      input.value = "";
+      return;
+    }
     const reader = new FileReader();
     reader.onerror = () => {
       setPhotoError("That photo could not be read. Try another PNG or JPG.");
@@ -545,6 +560,10 @@ export default function Home() {
 
   const autoFitToOnePage = async () => {
     setAutoFitting(true);
+    // A hidden mobile preview has no measurable content height. Make it the
+    // active surface for the fit pass and leave the result visible.
+    setMobileSurface("preview");
+    await waitForLayout();
     resumeRef.current?.classList.add("fit-measuring");
     try {
       if (await measureAtFitLevel(0)) return;
@@ -576,11 +595,16 @@ export default function Home() {
   };
 
   const handleExport = async (format: ExportFormat, options: { scale: number; quality: number }) => {
+    setExportError("");
     if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
     setActiveText(null);
+    // Mobile keeps the editor and preview in separate surfaces. Reveal the
+    // preview before measuring or capturing so exports never target a hidden
+    // resume.
+    setMobileSurface("preview");
+    await waitForLayout();
 
     if (format === "pdf") {
-      await waitForLayout();
       if (style.fitLevel > 0 && getResumeContentHeight() > geometry.printSafeHeightPx) {
         await autoFitToOnePage();
         await waitForLayout();
@@ -591,6 +615,12 @@ export default function Home() {
 
     if (!resumeRef.current) return;
     const paperWrap = resumeRef.current.closest<HTMLElement>(".paper-wrap");
+    const exportWidth = resumeRef.current.scrollWidth * options.scale;
+    const exportHeight = resumeRef.current.scrollHeight * options.scale;
+    if (exportWidth > 16_384 || exportHeight > 16_384 || exportWidth * exportHeight > 100_000_000) {
+      setExportError("This image would be too large for the browser. Lower the resolution or use PDF.");
+      return;
+    }
     setExporting(true);
     paperWrap?.classList.add("export-source");
     try {
@@ -614,7 +644,13 @@ export default function Home() {
           format === "jpg" ? options.quality : undefined,
         ),
       );
-      if (blob) downloadBlob(blob, `${safeFilename(data.name)}.${format}`);
+      if (!blob) {
+        setExportError("The browser could not create that image. Lower the resolution or use PDF.");
+        return;
+      }
+      downloadBlob(blob, `${safeFilename(data.name)}.${format}`);
+    } catch {
+      setExportError("Export failed in this browser. Try a lower image resolution or use PDF.");
     } finally {
       paperWrap?.classList.remove("export-source");
       setExporting(false);
@@ -633,6 +669,16 @@ export default function Home() {
     return result.ok
       ? { ok: true, count: result.documents.length }
       : { ok: false, reason: result.reason };
+  };
+
+  const handleCreateFromImport = async (file: File) => {
+    const result = await importResumeFile(file);
+    if (!result.ok) return { ok: false, reason: result.reason };
+    const title = file.name.replace(/\.(pdf|docx|txt|md|markdown)$/i, "") || "Imported resume";
+    workspace.addDocument(createDocument(title, result.data, { ...defaultStyle }));
+    setActiveTab("content");
+    setMobileSurface("editor");
+    return { ok: true };
   };
 
   /* ------------------------------------------------------------ shortcuts */
@@ -724,19 +770,20 @@ export default function Home() {
         setData(tianXingExample);
         setStyle(() => ({ ...defaultStyle }));
       },
-      title: "Reset to the starter?",
+      title: "Reset to the Tian Xing example?",
       tone: "danger",
     });
 
   const saveLabel = workspace.saveError
     ? "Try save again"
     : workspace.hasUnsavedChanges
-      ? "Save changes"
-      : "Saved";
+      ? "Save now"
+      : "Saved on device";
 
   const tabLabels: Record<Tab, string> = {
     content: "Content",
     style: "Style",
+    review: "Check",
     export: "Export",
   };
 
@@ -762,6 +809,41 @@ export default function Home() {
             </div>
           </div>
         </div>
+
+        {workspace.activeDocument && (
+          <DocumentSwitcher
+            activeId={workspace.activeDocument.id}
+            documents={workspace.documents}
+            onCreateBlank={() => {
+              workspace.createBlank();
+              setActiveTab("content");
+              setMobileSurface("editor");
+            }}
+            onCreateFromExample={() => {
+              workspace.createFromExample();
+              setActiveTab("content");
+              setMobileSurface("editor");
+            }}
+            onDelete={(id) =>
+              setConfirmation({
+                confirmLabel: "Delete resume",
+                eyebrow: "Your resumes",
+                message: "This removes the saved resume from this browser. Download a backup first if you may need it later.",
+                onConfirm: () => workspace.deleteDocument(id),
+                title: "Delete this resume?",
+                tone: "danger",
+              })
+            }
+            onDownloadBackup={handleExportBackup}
+            onDuplicate={() => {
+              workspace.duplicateActive();
+              setActiveTab("content");
+            }}
+            onImportFile={handleCreateFromImport}
+            onRename={workspace.renameActive}
+            onSelect={workspace.selectDocument}
+          />
+        )}
 
         <div className="header-actions">
           <div aria-label="Editing history" className="history-actions" role="group">
@@ -808,7 +890,32 @@ export default function Home() {
         </div>
       </header>
 
-      <div className="workspace">
+      {workspace.externalConflict && (
+        <div className="cross-tab-alert no-print" role="alert">
+          <span>These resumes changed in another tab.</span>
+          <button onClick={workspace.reloadExternalVersion} type="button">Use other tab’s version</button>
+          <button onClick={workspace.keepCurrentVersion} type="button">Keep this version</button>
+        </div>
+      )}
+
+      <div aria-label="Mobile workspace view" className="mobile-surface-switch no-print" role="group">
+        <button
+          aria-pressed={mobileSurface === "editor"}
+          onClick={() => setMobileSurface("editor")}
+          type="button"
+        >
+          Edit
+        </button>
+        <button
+          aria-pressed={mobileSurface === "preview"}
+          onClick={() => setMobileSurface("preview")}
+          type="button"
+        >
+          Preview
+        </button>
+      </div>
+
+      <div aria-busy={autoFitting} className={`workspace mobile-show-${mobileSurface}`}>
         <aside className="editor-panel no-print">
           <nav aria-label="Resume editor" className="tab-list">
             {TABS.map((tab) => (
@@ -862,10 +969,23 @@ export default function Home() {
               />
             )}
 
+            {activeTab === "review" && (
+              <ReviewPanel
+                data={data}
+                onNavigate={(target) => {
+                  setActiveTab(target);
+                  setMobileSurface("editor");
+                }}
+                pageCount={pageCount}
+                style={style}
+              />
+            )}
+
             {activeTab === "export" && (
               <ExportPanel
                 autoFitting={autoFitting}
                 data={data}
+                exportError={exportError}
                 exporting={exporting}
                 onAutoFit={autoFitToOnePage}
                 onExport={handleExport}
@@ -881,17 +1001,33 @@ export default function Home() {
 
         <section
           className="preview-stage"
+          aria-labelledby="resume-preview-title"
           id="resume-preview"
           onPointerDown={(event) => {
             const target = event.target as HTMLElement;
             if (!target.closest("[data-inline-edit], [data-font-tools]")) setActiveText(null);
           }}
           ref={previewStageRef}
+          tabIndex={-1}
         >
+          <h2 className="sr-only" id="resume-preview-title">
+            Resume preview, {pageCount} {pageCount === 1 ? "page" : "pages"}
+          </h2>
           <div className="preview-toolbar no-print">
-            <span>
-              {pageCount} {pageCount === 1 ? "page" : "pages"} · {geometry.label}
-            </span>
+            {pageCount > 1 ? (
+              <button
+                className="preview-fit-shortcut"
+                onClick={() => {
+                  setActiveTab("export");
+                  setMobileSurface("editor");
+                }}
+                type="button"
+              >
+                {pageCount} pages · {geometry.label} · Fit now
+              </button>
+            ) : (
+              <span>1 page · {geometry.label}</span>
+            )}
           </div>
 
           <div className="paper-viewport" ref={paperViewportRef}>
@@ -913,6 +1049,17 @@ export default function Home() {
                 photoRef={photoRef}
                 style={style}
               />
+              {pageCount > 1 &&
+                Array.from({ length: pageCount - 1 }, (_, index) => (
+                  <div
+                    aria-hidden="true"
+                    className="page-break-indicator no-print"
+                    key={index}
+                    style={{ top: `${geometry.printSafeHeightPx * (index + 1)}px` }}
+                  >
+                    <span>Page {index + 1} ends here</span>
+                  </div>
+                ))}
             </div>
           </div>
         </section>

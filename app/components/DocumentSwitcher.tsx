@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import type { ResumeDocument } from "../lib/resume-model";
 
 export type DocumentSwitcherProps = {
@@ -9,7 +9,9 @@ export type DocumentSwitcherProps = {
   onCreateBlank: () => void;
   onCreateFromExample: () => void;
   onDelete: (id: string) => void;
+  onDownloadBackup: () => void;
   onDuplicate: () => void;
+  onImportFile: (file: File) => Promise<{ ok: boolean; reason?: string }>;
   onRename: (title: string) => void;
   onSelect: (id: string) => void;
 };
@@ -20,11 +22,16 @@ export function DocumentSwitcher({
   onCreateBlank,
   onCreateFromExample,
   onDelete,
+  onDownloadBackup,
   onDuplicate,
+  onImportFile,
   onRename,
   onSelect,
 }: DocumentSwitcherProps) {
   const [open, setOpen] = useState(false);
+  const [newOpen, setNewOpen] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [message, setMessage] = useState("");
   const containerRef = useRef<HTMLDivElement>(null);
   const active = documents.find((document) => document.id === activeId) ?? documents[0];
 
@@ -45,6 +52,23 @@ export function DocumentSwitcher({
   }, [open]);
 
   if (!active) return null;
+
+  const handleImport = async (event: ChangeEvent<HTMLInputElement>) => {
+    const input = event.currentTarget;
+    const file = input.files?.[0];
+    if (!file) return;
+    setImporting(true);
+    setMessage("");
+    const result = await onImportFile(file);
+    setImporting(false);
+    input.value = "";
+    if (result.ok) {
+      setOpen(false);
+      setNewOpen(false);
+    } else {
+      setMessage(result.reason ?? "That resume could not be imported.");
+    }
+  };
 
   return (
     <div className="document-switcher" ref={containerRef}>
@@ -103,13 +127,11 @@ export function DocumentSwitcher({
           </ul>
           <div className="document-menu-actions">
             <button
-              onClick={() => {
-                onCreateBlank();
-                setOpen(false);
-              }}
+              aria-expanded={newOpen}
+              onClick={() => setNewOpen((current) => !current)}
               type="button"
             >
-              New blank
+              + New
             </button>
             <button
               onClick={() => {
@@ -120,16 +142,46 @@ export function DocumentSwitcher({
             >
               Duplicate this
             </button>
-            <button
-              onClick={() => {
-                onCreateFromExample();
-                setOpen(false);
-              }}
-              type="button"
-            >
-              From example
+            <button onClick={onDownloadBackup} type="button">
+              Back up
             </button>
           </div>
+          {newOpen && (
+            <div aria-label="Create a new resume" className="document-new-options">
+              <p>Start a new resume</p>
+              <button
+                onClick={() => {
+                  onCreateBlank();
+                  setOpen(false);
+                }}
+                type="button"
+              >
+                <strong>Blank resume</strong>
+                <small>Start with an empty document</small>
+              </button>
+              <label className={importing ? "disabled" : ""}>
+                <strong>{importing ? "Importing…" : "Import a resume"}</strong>
+                <small>PDF, Word .docx, or text · processed on this device</small>
+                <input
+                  accept=".pdf,.docx,.txt,.md,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,text/markdown"
+                  disabled={importing}
+                  onChange={handleImport}
+                  type="file"
+                />
+              </label>
+              <button
+                onClick={() => {
+                  onCreateFromExample();
+                  setOpen(false);
+                }}
+                type="button"
+              >
+                <strong>Another example</strong>
+                <small>Make a fresh copy of Tian Xing’s example</small>
+              </button>
+              {message && <p className="document-new-error" role="alert">{message}</p>}
+            </div>
+          )}
         </div>
       )}
     </div>

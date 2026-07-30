@@ -18,9 +18,11 @@ import {
 import {
   defaultStyle,
   loadWorkspace,
+  migrateWorkspace,
   parseBackup,
   saveWorkspace,
   serializeBackup,
+  STORAGE_KEY,
   starterWorkspace,
   type Workspace,
 } from "../lib/storage";
@@ -32,6 +34,7 @@ const useIsomorphicLayoutEffect =
 const HISTORY_LIMIT = 80;
 const HISTORY_COALESCE_MS = 900;
 const DIRTY_CHECK_MS = 220;
+const AUTOSAVE_MS = 900;
 
 type Snapshot = { data: ResumeData; style: ResumeStyle };
 
@@ -53,6 +56,7 @@ export function useWorkspace() {
   const [saveError, setSaveError] = useState("");
   const [canUndo, setCanUndo] = useState(false);
   const [canRedo, setCanRedo] = useState(false);
+  const [externalConflict, setExternalConflict] = useState(false);
 
   const savedSnapshot = useRef<string>("");
   const undoStack = useRef<Snapshot[]>([]);
@@ -60,6 +64,8 @@ export function useWorkspace() {
   const present = useRef<Snapshot | null>(null);
   const applyingHistory = useRef(false);
   const lastChangeAt = useRef(0);
+  const hasUnsavedRef = useRef(false);
+  const conflictRef = useRef(false);
 
   const activeDocument = useMemo(
     () =>
@@ -131,6 +137,10 @@ export function useWorkspace() {
     };
     window.addEventListener("beforeunload", warn);
     return () => window.removeEventListener("beforeunload", warn);
+  }, [hasUnsavedChanges]);
+
+  useEffect(() => {
+    hasUnsavedRef.current = hasUnsavedChanges;
   }, [hasUnsavedChanges]);
 
   /* --------------------------------------------------------------- editing */
@@ -210,6 +220,14 @@ export function useWorkspace() {
   /* ------------------------------------------------------------ persistence */
 
   const save = useCallback(() => {
+    if (conflictRef.current) {
+      const result = {
+        ok: false as const,
+        reason: "Another tab changed these resumes. Choose which version to keep before saving.",
+      };
+      setSaveError(result.reason);
+      return result;
+    }
     const result = saveWorkspace(workspace);
     if (result.ok) {
       savedSnapshot.current = serialize(workspace);
@@ -219,6 +237,66 @@ export function useWorkspace() {
       setSaveError(result.reason);
     }
     return result;
+  }, [workspace]);
+
+  useEffect(() => {
+    if (!hydrated || !hasUnsavedChanges || externalConflict) return;
+    const timer = window.setTimeout(save, AUTOSAVE_MS);
+    return () => window.clearTimeout(timer);
+  }, [externalConflict, hasUnsavedChanges, hydrated, save]);
+
+  useEffect(() => {
+    if (!hydrated) return;
+    const receiveExternalSave = (event: StorageEvent) => {
+      if (event.key !== STORAGE_KEY || !event.newValue) return;
+      let next: Workspace;
+      try {
+        next = migrateWorkspace(JSON.parse(event.newValue));
+      } catch {
+        return;
+      }
+      if (hasUnsavedRef.current) {
+        conflictRef.current = true;
+        setExternalConflict(true);
+        return;
+      }
+      const active =
+        next.documents.find((document) => document.id === next.activeId) ??
+        next.documents[0];
+      savedSnapshot.current = serialize(next);
+      resetHistory(active);
+      setWorkspace(next);
+      setSaveError("");
+    };
+    window.addEventListener("storage", receiveExternalSave);
+    return () => window.removeEventListener("storage", receiveExternalSave);
+  }, [hydrated, resetHistory]);
+
+  const reloadExternalVersion = useCallback(() => {
+    const next = loadWorkspace();
+    const active =
+      next.documents.find((document) => document.id === next.activeId) ??
+      next.documents[0];
+    resetHistory(active);
+    savedSnapshot.current = serialize(next);
+    conflictRef.current = false;
+    setExternalConflict(false);
+    setHasUnsavedChanges(false);
+    setSaveError("");
+    setWorkspace(next);
+  }, [resetHistory]);
+
+  const keepCurrentVersion = useCallback(() => {
+    conflictRef.current = false;
+    setExternalConflict(false);
+    const result = saveWorkspace(workspace);
+    if (result.ok) {
+      savedSnapshot.current = serialize(workspace);
+      setHasUnsavedChanges(false);
+      setSaveError("");
+    } else {
+      setSaveError(result.reason);
+    }
   }, [workspace]);
 
   /* -------------------------------------------------------------- documents */
@@ -339,10 +417,13 @@ export function useWorkspace() {
     documents: workspace.documents,
     duplicateActive,
     exportBackup,
+    externalConflict,
     hasUnsavedChanges,
     hydrated,
     importDocuments,
+    keepCurrentVersion,
     redo,
+    reloadExternalVersion,
     renameActive,
     resetHistory,
     save,

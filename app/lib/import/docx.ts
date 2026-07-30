@@ -13,7 +13,16 @@ import { normaliseText } from "./normalize";
 const SIGNATURE_EOCD = 0x06054b50;
 const SIGNATURE_LOCAL = 0x04034b50;
 
-type ZipEntry = { name: string; compression: number; offset: number; size: number };
+type ZipEntry = {
+  name: string;
+  compression: number;
+  offset: number;
+  size: number;
+  uncompressedSize: number;
+};
+
+const MAX_ZIP_ENTRIES = 2_000;
+const MAX_DOCUMENT_XML_BYTES = 8 * 1024 * 1024;
 
 function readCentralDirectory(view: DataView): ZipEntry[] {
   // The end-of-central-directory record sits at the tail, after an optional
@@ -29,6 +38,7 @@ function readCentralDirectory(view: DataView): ZipEntry[] {
   if (eocd < 0) throw new Error("Not a ZIP archive.");
 
   const count = view.getUint16(eocd + 10, true);
+  if (count > MAX_ZIP_ENTRIES) throw new Error("DOCX_EXPANSION_LIMIT");
   let cursor = view.getUint32(eocd + 16, true);
   const entries: ZipEntry[] = [];
 
@@ -46,6 +56,7 @@ function readCentralDirectory(view: DataView): ZipEntry[] {
       // Compressed size (+20), not the uncompressed size at +24: this bounds
       // the deflate stream that gets inflated.
       size: view.getUint32(cursor + 20, true),
+      uncompressedSize: view.getUint32(cursor + 24, true),
     });
     cursor += 46 + nameLength + extraLength + commentLength;
   }
@@ -53,6 +64,12 @@ function readCentralDirectory(view: DataView): ZipEntry[] {
 }
 
 async function readEntry(buffer: ArrayBuffer, view: DataView, entry: ZipEntry): Promise<string> {
+  if (
+    entry.uncompressedSize > MAX_DOCUMENT_XML_BYTES ||
+    (entry.size > 0 && entry.uncompressedSize / entry.size > 250)
+  ) {
+    throw new Error("DOCX_EXPANSION_LIMIT");
+  }
   if (view.getUint32(entry.offset, true) !== SIGNATURE_LOCAL) {
     throw new Error("Damaged ZIP entry.");
   }
@@ -65,7 +82,9 @@ async function readEntry(buffer: ArrayBuffer, view: DataView, entry: ZipEntry): 
   if (entry.compression !== 8) throw new Error("Unsupported ZIP compression.");
 
   const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
-  return new Response(stream).text();
+  const output = await new Response(stream).arrayBuffer();
+  if (output.byteLength > MAX_DOCUMENT_XML_BYTES) throw new Error("DOCX_EXPANSION_LIMIT");
+  return new TextDecoder().decode(output);
 }
 
 const unescapeXml = (value: string) =>

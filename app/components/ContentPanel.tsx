@@ -317,7 +317,14 @@ export function ContentPanel({
                   Cancel
                 </button>
               </div>
-              <div className="ocr-progress-track">
+              <div
+                aria-label="Text recognition progress"
+                aria-valuemax={100}
+                aria-valuemin={0}
+                aria-valuenow={Math.round(ocrProgress.ratio * 100)}
+                className="ocr-progress-track"
+                role="progressbar"
+              >
                 <span style={{ width: `${Math.round(ocrProgress.ratio * 100)}%` }} />
               </div>
             </div>

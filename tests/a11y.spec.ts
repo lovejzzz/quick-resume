@@ -20,7 +20,7 @@ declare global {
   }
 }
 
-const TABS = ["Content", "Style", "Export"] as const;
+const TABS = ["Content", "Style", "Check", "Export"] as const;
 const VIEWPORTS = [
   { width: 1440, height: 900, label: "desktop" },
   { width: 390, height: 844, label: "mobile" },
@@ -30,7 +30,12 @@ for (const viewport of VIEWPORTS) {
   test(`has no WCAG 2.1 A/AA violations on ${viewport.label}`, async ({ page }) => {
     await page.setViewportSize({ width: viewport.width, height: viewport.height });
     await page.goto("/");
-    await expect(page.locator(".resume-paper h2")).toBeVisible();
+    if (viewport.label === "mobile") {
+      await expect(page.locator(".editor-panel")).toBeVisible();
+      await expect(page.locator(".resume-paper h2")).toBeHidden();
+    } else {
+      await expect(page.locator(".resume-paper h2")).toBeVisible();
+    }
 
     const found: string[] = [];
     for (const tab of TABS) {

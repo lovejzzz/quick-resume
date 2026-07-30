@@ -25,11 +25,14 @@ from the editor itself, so it can be replaced without changing product logic.
 - Multi-step undo and redo (`⌘/Ctrl+Z`, `⌘/Ctrl+Shift+Z`)
 - Find U.S. colleges and universities with a local NCES/IPEDS autocomplete
 
-### Review
+### Check
 
 - Paste a job description to see which of its terms your resume is missing
 - Bullet-strength checks for weak openers, missing numbers, first-person
   phrasing, passive voice, and length
+- Run a pre-export check for contact details, links, unfinished/example
+  content, contrast, and page fit
+- Preview the plain-text reading order an applicant tracking system can see
 
 ### Presentation
 
@@ -49,6 +52,7 @@ from the editor itself, so it can be replaced without changing product logic.
 - See approximate file size and page count before export
 - Back up and restore every resume as a JSON file
 - Works offline once loaded, and can be installed as an app
+- Switch between focused Edit and Preview modes on mobile
 
 ## Run locally
 
@@ -106,8 +110,11 @@ starter rather than throwing, because a value that crashes on load would be
 re-read on every subsequent visit. Payloads written by earlier versions (a bare
 `{ data, style }` pair with no version marker) are migrated on read.
 
-Because the browser holds the only copy, **Export → Download backup** is the
-supported way to move between devices or guard against clearing site data.
+Edits are autosaved locally after a short delay, with one recovery snapshot
+kept on the same device. Because the browser still holds the only copies,
+**Export → Download backup** is the supported way to move between devices or
+guard against clearing site data. Multiple open tabs detect competing edits
+instead of silently overwriting each other.
 
 ## Use a different starter resume
 
@@ -242,7 +249,7 @@ through the actual UI by
 
 ## Keyword matching
 
-Review → paste a job description. The posting is tokenised, ranked by frequency
+Check → paste a job description. The posting is tokenised, ranked by frequency
 (favouring recurring two-word phrases), and diffed against your resume text, so
 you can see which prominent terms a keyword-matching applicant tracking system
 will not find.
@@ -266,6 +273,17 @@ Editor controls and inline formatting buttons are excluded from exported files.
 - `html2canvas` for image export and `pdf.js` for import, both dynamically
   imported so neither is in the initial bundle
 - A service worker precaches the shell for offline editing
+
+## Privacy and security
+
+The product data flow and browser-storage risks are documented in
+[`PRIVACY.md`](PRIVACY.md). Please report vulnerabilities privately as described
+in [`SECURITY.md`](SECURITY.md).
+
+## Contributing and license
+
+See [`CONTRIBUTING.md`](CONTRIBUTING.md) for the local verification workflow.
+Quicky Resume is available under the [MIT License](LICENSE).
 
 ## Deployment
 
