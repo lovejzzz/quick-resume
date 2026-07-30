@@ -4237,7 +4237,22 @@ body {
     border-color: rgba(31, 93, 86, 0.2);
   }
 
-  .workspace.mobile-show-editor .preview-stage,
+  /*
+   * Keep the hidden preview laid out offscreen so page-count, Smart Fit, and
+   * export estimates are correct before the user opens Preview. `visibility`
+   * keeps it out of the accessibility tree and Playwright's visible surface.
+   */
+  .workspace.mobile-show-editor .preview-stage {
+    position: fixed;
+    top: 0;
+    left: -10000px;
+    display: block;
+    width: 100vw;
+    height: 100vh;
+    visibility: hidden;
+    pointer-events: none;
+  }
+
   .workspace.mobile-show-preview .editor-panel {
     display: none;
   }
@@ -4277,5 +4292,17 @@ body {
   .preflight-item button {
     grid-column: 2;
     justify-self: start;
+  }
+}
+
+@media print {
+  /* Undo the offscreen mobile measurement surface for real print output. */
+  .workspace.mobile-show-editor .preview-stage,
+  .workspace.mobile-show-preview .preview-stage {
+    position: static !important;
+    width: auto;
+    height: auto;
+    visibility: visible !important;
+    pointer-events: auto;
   }
 }

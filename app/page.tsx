@@ -59,6 +59,7 @@ export default function Home() {
   const [pageCount, setPageCount] = useState(1);
   const [confirmation, setConfirmation] = useState<ConfirmationRequest | null>(null);
   const [mobileSurface, setMobileSurface] = useState<"editor" | "preview">("editor");
+  const [jobDescriptions, setJobDescriptions] = useState<Record<string, string>>({});
 
   const resumeRef = useRef<HTMLDivElement>(null);
   const editorScrollRef = useRef<HTMLDivElement>(null);
@@ -972,6 +973,16 @@ export default function Home() {
             {activeTab === "review" && (
               <ReviewPanel
                 data={data}
+                jobDescription={
+                  activeDocument ? (jobDescriptions[activeDocument.id] ?? "") : ""
+                }
+                onJobDescriptionChange={(value) => {
+                  if (!activeDocument) return;
+                  setJobDescriptions((current) => ({
+                    ...current,
+                    [activeDocument.id]: value,
+                  }));
+                }}
                 onNavigate={(target) => {
                   setActiveTab(target);
                   setMobileSurface("editor");

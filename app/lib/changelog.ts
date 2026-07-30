@@ -11,6 +11,15 @@ export const appVersion: string = packageJson.version;
 
 export const releases: Release[] = [
   {
+    version: "0.3.2",
+    date: "2026-07-30",
+    notes: [
+      "Job descriptions stay available while moving between Check and editing",
+      "Accurate mobile page checks before the resume preview is opened",
+      "GitHub Pages HTTPS certificate provisioning restarted for the custom domain",
+    ],
+  },
+  {
     version: "0.3.1",
     date: "2026-07-30",
     notes: [

@@ -241,11 +241,16 @@ test.describe("resume workflow", () => {
   test("checks a job description and shows the ATS reading order", async ({ page }) => {
     await openEditor(page);
     await page.getByRole("button", { name: "Check", exact: true }).click();
-    await page.getByLabel(/job description/i).fill(
+    const jobDescription = page.getByLabel(/job description/i);
+    await jobDescription.fill(
       "We need a learning experience designer with learning experience design and WebGPU prototyping. WebGPU prototyping is essential.",
     );
     await expect(page.getByText(/keyword coverage/i)).toBeVisible();
     await expect(page.locator(".keyword.missing").filter({ hasText: /webgpu prototyping/i })).toBeVisible();
+    await page.getByRole("button", { name: "Content", exact: true }).click();
+    await page.getByRole("button", { name: "Check", exact: true }).click();
+    await expect(jobDescription).toHaveValue(/WebGPU prototyping/);
+    await expect(page.getByText(/keyword coverage/i)).toBeVisible();
     await page.getByText(/preview the text an ATS can read/i).click();
     await expect(page.locator(".ats-preview pre")).toContainText("Tian Xing");
   });
@@ -256,6 +261,9 @@ test.describe("resume workflow", () => {
     await expect(page.getByRole("heading", { level: 1, name: "Quicky Resume" })).toBeVisible();
     await expect(page.locator(".editor-panel")).toBeVisible();
     await expect(page.locator(".preview-stage")).toBeHidden();
+    await page.getByRole("button", { name: "Check", exact: true }).click();
+    await expect(page.locator(".preflight-list")).toContainText("2 pages");
+    await expect(page.locator(".preflight-list")).not.toContainText("Fits one US Letter page");
     await page.getByRole("button", { name: "Preview", exact: true }).click();
     await expect(page.locator(".preview-stage")).toBeVisible();
     await expect(page.locator(".editor-panel")).toBeHidden();
