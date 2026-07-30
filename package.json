@@ -28,17 +28,17 @@
     "tesseract.js": "^7.0.0"
   },
   "devDependencies": {
-    "@playwright/test": "^1.56.1",
-    "@tailwindcss/postcss": "4.2.1",
-    "@types/node": "22.19.19",
+    "@playwright/test": "^1.62.1",
+    "@tailwindcss/postcss": "4.3.3",
+    "@types/node": "26.1.2",
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3",
     "axe-core": "^4.12.1",
-    "eslint": "9.39.4",
+    "eslint": "10.8.0",
     "eslint-config-next": "16.2.12",
     "serve": "^14.2.6",
-    "tailwindcss": "4.2.1",
-    "typescript": "5.9.3"
+    "tailwindcss": "4.3.3",
+    "typescript": "7.0.2"
   },
   "type": "module",
   "overrides": {
