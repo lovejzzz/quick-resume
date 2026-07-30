@@ -38,7 +38,7 @@ test.describe("editor shell", () => {
 
   test("exposes the complete editing workflow", async ({ page }) => {
     await openEditor(page);
-    for (const tab of ["Content", "Style", "Check", "Export"]) {
+    for (const tab of ["Content", "Style", "Review", "Export"]) {
       await expect(page.getByRole("button", { name: tab, exact: true })).toBeVisible();
     }
   });
@@ -238,20 +238,28 @@ test.describe("resume workflow", () => {
     await expect(page.getByText(/processed on this device/i)).toBeVisible();
   });
 
-  test("checks a job description and shows the ATS reading order", async ({ page }) => {
+  test("compares literal job terms without presenting an AI or fit score", async ({ page }) => {
     await openEditor(page);
-    await page.getByRole("button", { name: "Check", exact: true }).click();
+    await page.getByRole("button", { name: "Review", exact: true }).click();
+    await expect(page.getByText(/does not use AI/i)).toBeVisible();
+    await expect(page.getByText("Must fix", { exact: true })).toBeVisible();
+    await expect(page.getByText("Worth reviewing", { exact: true })).toBeVisible();
     const jobDescription = page.getByLabel(/job description/i);
     await jobDescription.fill(
       "We need a learning experience designer with learning experience design and WebGPU prototyping. WebGPU prototyping is essential.",
     );
-    await expect(page.getByText(/keyword coverage/i)).toBeVisible();
+    await expect(page.getByText("Literal term comparison")).toBeVisible();
+    await expect(page.getByText("Not a score")).toBeVisible();
+    await expect(page.getByRole("progressbar")).toHaveCount(0);
     await expect(page.locator(".keyword.missing").filter({ hasText: /webgpu prototyping/i })).toBeVisible();
     await page.getByRole("button", { name: "Content", exact: true }).click();
-    await page.getByRole("button", { name: "Check", exact: true }).click();
+    await page.getByRole("button", { name: "Review", exact: true }).click();
     await expect(jobDescription).toHaveValue(/WebGPU prototyping/);
-    await expect(page.getByText(/keyword coverage/i)).toBeVisible();
-    await page.getByText(/preview the text an ATS can read/i).click();
+    await expect(page.getByText("Literal term comparison")).toBeVisible();
+    await expect(
+      page.locator(".keyword.missing").filter({ hasText: /webgpu prototyping/i }),
+    ).toBeVisible();
+    await page.getByText("ATS-readable text", { exact: true }).click();
     await expect(page.locator(".ats-preview pre")).toContainText("Tian Xing");
   });
 
@@ -262,9 +270,9 @@ test.describe("resume workflow", () => {
     await expect(page.getByRole("heading", { level: 1, name: "Quicky Resume" })).toBeVisible();
     await expect(page.locator(".editor-panel")).toBeVisible();
     await expect(page.locator(".preview-stage")).toBeHidden();
-    await page.getByRole("button", { name: "Check", exact: true }).click();
-    await expect(page.locator(".preflight-list")).toContainText("2 pages");
-    await expect(page.locator(".preflight-list")).not.toContainText("Fits one US Letter page");
+    await page.getByRole("button", { name: "Review", exact: true }).click();
+    await expect(page.locator(".preflight-item").filter({ hasText: "2 pages" })).toBeVisible();
+    await expect(page.getByText("Fits one US Letter page", { exact: true })).toHaveCount(0);
     await page.getByRole("button", { name: "Preview", exact: true }).click();
     await expect(page.locator(".preview-stage")).toBeVisible();
     await expect(page.locator(".editor-panel")).toBeHidden();

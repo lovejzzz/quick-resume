@@ -784,7 +784,7 @@ export default function Home() {
   const tabLabels: Record<Tab, string> = {
     content: "Content",
     style: "Style",
-    review: "Check",
+    review: "Review",
     export: "Export",
   };
 

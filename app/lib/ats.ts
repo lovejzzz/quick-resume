@@ -1,7 +1,10 @@
 import type { ResumeData } from "./resume-model";
 
 /**
- * Client-side keyword gap analysis. Nothing leaves the browser.
+ * Literal client-side term comparison. Nothing leaves the browser.
+ *
+ * This deliberately does not score job fit or infer whether experience is
+ * relevant. It only reports whether selected terms also appear in the resume.
  */
 const STOP_WORDS = new Set(
   `a about above after again against all am an and any are as at be because been before being below
@@ -33,8 +36,7 @@ export type KeywordHit = {
   matched: boolean;
 };
 
-export type MatchReport = {
-  score: number;
+export type TermComparison = {
   matched: KeywordHit[];
   missing: KeywordHit[];
   totalTerms: number;
@@ -96,13 +98,13 @@ export function resumeCorpus(data: ResumeData): string {
   return parts.filter(Boolean).join(" \n ");
 }
 
-export function analyseJobMatch(
+export function compareJobTerms(
   jobDescription: string,
   data: ResumeData,
   limit = 28,
-): MatchReport {
+): TermComparison {
   const tokens = tokenise(jobDescription).filter(isMeaningful);
-  if (!tokens.length) return { score: 0, matched: [], missing: [], totalTerms: 0 };
+  if (!tokens.length) return { matched: [], missing: [], totalTerms: 0 };
 
   const counts = new Map<string, { term: string; count: number }>();
   for (const token of tokens) {
@@ -151,7 +153,6 @@ export function analyseJobMatch(
   });
   const matched = hits.filter((hit) => hit.matched);
   return {
-    score: hits.length ? Math.round((matched.length / hits.length) * 100) : 0,
     matched,
     missing: hits.filter((hit) => !hit.matched),
     totalTerms: hits.length,

@@ -4,6 +4,7 @@ import type { ResumeData, ResumeStyle } from "./resume-model";
 
 export type PreflightTarget = "content" | "style" | "export";
 export type PreflightItem = {
+  category: "required" | "review";
   id: string;
   level: "pass" | "warning";
   title: string;
@@ -27,6 +28,7 @@ export function buildPreflight(
     data.headline.trim() === tianXingExample.headline;
 
   add({
+    category: "required",
     id: "identity",
     level: data.name.trim() && data.headline.trim() ? "pass" : "warning",
     title: data.name.trim() && data.headline.trim() ? "Identity is complete" : "Add your name and headline",
@@ -34,6 +36,7 @@ export function buildPreflight(
     target: "content",
   });
   add({
+    category: "required",
     id: "contact",
     level: data.email.trim() || data.phone.trim() ? "pass" : "warning",
     title: data.email.trim() || data.phone.trim() ? "Contact method included" : "Add an email or phone number",
@@ -42,6 +45,7 @@ export function buildPreflight(
   });
   if (exampleStillLoaded) {
     add({
+      category: "required",
       id: "example",
       level: "warning",
       title: "The bundled example is still loaded",
@@ -62,6 +66,7 @@ export function buildPreflight(
       ),
   );
   add({
+    category: "required",
     id: "sections",
     level: emptySections.length ? "warning" : "pass",
     title: emptySections.length
@@ -78,6 +83,7 @@ export function buildPreflight(
   )].filter((link) => link.trim());
   const invalidLinks = links.filter((link) => !looksLikeLink(link));
   add({
+    category: "required",
     id: "links",
     level: invalidLinks.length ? "warning" : "pass",
     title: invalidLinks.length ? "Check a link that may not open" : "Links look usable",
@@ -91,6 +97,7 @@ export function buildPreflight(
 
   const accent = judgeAccent(style.accent);
   add({
+    category: "required",
     id: "contrast",
     level: accent?.level === "pass" ? "pass" : "warning",
     title: accent?.level === "pass" ? "Accent contrast passes" : "Review accent contrast",
@@ -98,6 +105,7 @@ export function buildPreflight(
     target: "style",
   });
   add({
+    category: "review",
     id: "pages",
     level: pageCount === 1 ? "pass" : "warning",
     title: pageCount === 1 ? `Fits one ${style.pageSize === "a4" ? "A4" : "US Letter"} page` : `${pageCount} pages`,
