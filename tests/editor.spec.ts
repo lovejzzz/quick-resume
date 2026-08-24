@@ -132,6 +132,45 @@ test.describe("photo placement", () => {
   });
 });
 
+test.describe("entry ordering", () => {
+  test("reorders items within a section by dragging", async ({ page }) => {
+    await openEditor(page);
+    await page.getByRole("button", { name: "Content", exact: true }).click();
+
+    const firstHandle = page.getByRole("button", { name: /reorder item 1 in experience/i });
+    const secondItem = page.locator('[data-entry-id="experience-2"]');
+    await firstHandle.scrollIntoViewIfNeeded();
+
+    const handleBox = await firstHandle.boundingBox();
+    const targetBox = await secondItem.boundingBox();
+    expect(handleBox).not.toBeNull();
+    expect(targetBox).not.toBeNull();
+    if (!handleBox || !targetBox) return;
+
+    await page.mouse.move(handleBox.x + handleBox.width / 2, handleBox.y + handleBox.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(targetBox.x + targetBox.width / 2, targetBox.y + targetBox.height * 0.8, {
+      steps: 12,
+    });
+    await page.mouse.up();
+
+    const experienceTitles = page.locator(".resume-section.kind-experience .resume-entry h4");
+    await expect(experienceTitles.first()).toHaveText("Music Tutor");
+    await expect(experienceTitles.nth(1)).toHaveText("Educational Technologist Intern");
+    await expect(page.getByRole("button", { name: /reorder item 1 in experience/i })).toBeVisible();
+  });
+
+  test("offers accessible move controls for section items", async ({ page }) => {
+    await openEditor(page);
+    await page.getByRole("button", { name: "Content", exact: true }).click();
+    await page.getByRole("button", { name: /move item 1 down in education/i }).click();
+
+    const educationTitles = page.locator(".resume-section.kind-education .resume-entry h4");
+    await expect(educationTitles.first()).toHaveText("Berklee College of Music");
+    await expect(educationTitles.nth(1)).toHaveText("New York University");
+  });
+});
+
 test.describe("persistence", () => {
   test("survives a reload after saving", async ({ page }) => {
     await openEditor(page);
