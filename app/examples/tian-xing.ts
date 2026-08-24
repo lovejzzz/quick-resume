@@ -13,7 +13,7 @@ export const tianXingExample: ResumeData = {
   email: "tx845@nyu.edu",
   phone: "",
   location: "",
-  portfolio: "xingpicture.myportfolio.com",
+  portfolio: "tian.fun",
   secondaryLink: "ins: xing_tian_lifeitself",
   photo: "",
   sections: [
@@ -69,6 +69,16 @@ export const tianXingExample: ResumeData = {
       kind: "experience",
       title: "Experience",
       entries: [
+        {
+          id: "experience-0",
+          heading: "Learning Technology Academic Tutor",
+          subheading: "We Education",
+          date: "2026/08-Present",
+          details: "",
+          bullets: [
+            "Provide personalized academic tutoring and learning support to help students better understand course materials and improve their performance.",
+          ],
+        },
         {
           id: "experience-1",
           heading: "Educational Technologist Intern",
@@ -168,6 +178,14 @@ export const tianXingExample: ResumeData = {
       kind: "awards",
       title: "Awards",
       entries: [
+        {
+          id: "award-0",
+          heading: "Creative Excellence Award",
+          subheading: "New York University",
+          date: "2026",
+          details: "",
+          bullets: [],
+        },
         {
           id: "award-1",
           heading: "IPA International Photography Award 3rd place",

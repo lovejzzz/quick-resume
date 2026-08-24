@@ -20,6 +20,7 @@ import { VersionWidget } from "./components/VersionWidget";
 import { useWorkspace } from "./hooks/useWorkspace";
 import { PHOTO_GAP, PHOTO_SIZE, safeFilename } from "./lib/fit";
 import { getPageGeometry } from "./lib/page-size";
+import { prepareResumePhoto } from "./lib/photo";
 import { importResumeFile } from "./lib/import-resume";
 import { tianXingExample } from "./examples/tian-xing";
 import type { ResumeData, ResumeEntry, ResumeLayout, ResumeSection } from "./lib/resume-model";
@@ -335,7 +336,7 @@ export default function Home() {
     movePhotoTo(style.photoX + direction[0] * distance, style.photoY + direction[1] * distance);
   };
 
-  const handlePhoto = (event: ChangeEvent<HTMLInputElement>) => {
+  const handlePhoto = async (event: ChangeEvent<HTMLInputElement>) => {
     const input = event.currentTarget;
     const file = input.files?.[0];
     if (!file) return;
@@ -345,42 +346,15 @@ export default function Home() {
       input.value = "";
       return;
     }
-    if (file.size > 10 * 1024 * 1024) {
-      setPhotoError("That photo is over 10 MB. Choose a smaller image.");
+    try {
+      const photo = await prepareResumePhoto(file);
+      setData((current) => ({ ...current, photo }));
+      setStyle((current) => ({ ...current, showPhoto: true }));
+    } catch {
+      setPhotoError("That photo could not be opened. Try another PNG, JPG, or WebP image.");
+    } finally {
       input.value = "";
-      return;
     }
-    const reader = new FileReader();
-    reader.onerror = () => {
-      setPhotoError("That photo could not be read. Try another PNG or JPG.");
-      input.value = "";
-    };
-    reader.onload = () => {
-      const image = new window.Image();
-      image.onerror = () => {
-        setPhotoError("That photo could not be opened. Try another PNG or JPG.");
-        input.value = "";
-      };
-      image.onload = () => {
-        const max = 600;
-        const ratio = Math.min(1, max / Math.max(image.width, image.height));
-        const canvas = document.createElement("canvas");
-        canvas.width = Math.round(image.width * ratio);
-        canvas.height = Math.round(image.height * ratio);
-        const context = canvas.getContext("2d");
-        if (!context) {
-          setPhotoError("Your browser could not prepare that photo.");
-          input.value = "";
-          return;
-        }
-        context.drawImage(image, 0, 0, canvas.width, canvas.height);
-        setData((current) => ({ ...current, photo: canvas.toDataURL("image/jpeg", 0.84) }));
-        setStyle((current) => ({ ...current, showPhoto: true }));
-        input.value = "";
-      };
-      image.src = String(reader.result);
-    };
-    reader.readAsDataURL(file);
   };
 
   /* --------------------------------------------------------------- editing */

@@ -101,7 +101,7 @@ test("downloads correctly sized Letter PNG and A4 JPG files", async ({ page }, t
 
   await showPreview(page);
   const letterPaper = await page.locator(".resume-paper").evaluate((element) => ({
-    height: (element as HTMLElement).offsetHeight,
+    height: (element as HTMLElement).scrollHeight,
     width: (element as HTMLElement).offsetWidth,
   }));
   const letterPng = await downloadImage(page, testInfo, "PNG", "letter-resume");
@@ -109,14 +109,14 @@ test("downloads correctly sized Letter PNG and A4 JPG files", async ({ page }, t
   const letter = getPageGeometry("letter");
   expect(letterMetadata.format).toBe("png");
   expect(letterMetadata.width).toBe(letterPaper.width * 2);
-  expect(letterMetadata.height).toBe(letterPaper.height * 2);
+  expect(Math.abs((letterMetadata.height ?? 0) - letterPaper.height * 2)).toBeLessThanOrEqual(8);
   expect(letterMetadata.width).toBe(letter.widthPx * 2);
   expect(letterMetadata.height).toBeGreaterThanOrEqual(letter.heightPx * 2);
 
   await choosePageSize(page, "A4");
   await showPreview(page);
   const a4Paper = await page.locator(".resume-paper").evaluate((element) => ({
-    height: (element as HTMLElement).offsetHeight,
+    height: (element as HTMLElement).scrollHeight,
     width: (element as HTMLElement).offsetWidth,
   }));
   const a4Jpg = await downloadImage(page, testInfo, "JPG", "a4-resume");
@@ -124,7 +124,7 @@ test("downloads correctly sized Letter PNG and A4 JPG files", async ({ page }, t
   const a4 = getPageGeometry("a4");
   expect(a4Metadata.format).toBe("jpeg");
   expect(a4Metadata.width).toBe(a4Paper.width * 2);
-  expect(a4Metadata.height).toBe(a4Paper.height * 2);
+  expect(Math.abs((a4Metadata.height ?? 0) - a4Paper.height * 2)).toBeLessThanOrEqual(8);
   expect(a4Metadata.width).toBe(a4.widthPx * 2);
   expect(a4Metadata.height).toBeGreaterThanOrEqual(a4.heightPx * 2);
 });

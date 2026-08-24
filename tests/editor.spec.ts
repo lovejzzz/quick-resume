@@ -1,4 +1,6 @@
+import { randomBytes } from "node:crypto";
 import { expect, test, type Page } from "@playwright/test";
+import sharp from "sharp";
 import { tianXingExample } from "../app/examples/tian-xing";
 import { defaultStyle } from "../app/lib/storage";
 
@@ -29,7 +31,10 @@ test.describe("editor shell", () => {
   test("renders the example resume and its sections", async ({ page }) => {
     await openEditor(page);
     await expect(page.locator(".resume-paper")).toContainText("Tian Xing");
+    await expect(page.locator(".resume-paper")).toContainText("Learning Technology Academic Tutor");
     await expect(page.locator(".resume-paper")).toContainText("Educational Technologist Intern");
+    await expect(page.locator(".resume-paper")).toContainText("Creative Excellence Award");
+    await expect(page.locator(".resume-paper")).toContainText("tian.fun");
     await expect(page.locator(".resume-paper")).toContainText(
       "AI enabled workflows, multimedia production, and music education.",
     );
@@ -81,6 +86,43 @@ test.describe("inline editing", () => {
 });
 
 test.describe("photo placement", () => {
+  test("silently optimizes photos larger than 10 MB", async ({ page }) => {
+    await openEditor(page);
+
+    const width = 2_200;
+    const height = 2_200;
+    const oversizedPhoto = await sharp(randomBytes(width * height * 3), {
+      raw: { channels: 3, height, width },
+    })
+      .png({ compressionLevel: 0 })
+      .toBuffer();
+    expect(oversizedPhoto.byteLength).toBeGreaterThan(10 * 1024 * 1024);
+    await page.locator('input[type="file"][accept*="image/png"]').setInputFiles({
+      buffer: oversizedPhoto,
+      mimeType: "image/png",
+      name: "oversized-photo.png",
+    });
+
+    const preview = page.locator(".photo-control-heading img");
+    await expect(preview).toBeVisible({ timeout: 30_000 });
+    await expect(page.locator(".photo-error")).toHaveCount(0);
+    const optimized = await preview.evaluate((image) => {
+      const source = image.getAttribute("src") ?? "";
+      const payload = source.split(",", 2)[1] ?? "";
+      return {
+        bytes: Math.floor((payload.length * 3) / 4),
+        height: image.naturalHeight,
+        width: image.naturalWidth,
+      };
+    });
+    expect(optimized.bytes).toBeLessThan(10 * 1024 * 1024);
+    expect(optimized.bytes).toBeGreaterThan(1.3 * 1024 * 1024);
+    expect(optimized.width).toBe(width);
+    expect(optimized.height).toBe(height);
+    await page.waitForTimeout(2_000);
+    await expect(page.locator(".save-button")).not.toHaveClass(/error/);
+  });
+
   test("keeps text runaround after the photo is dropped", async ({ page }) => {
     await seedStorage(page, {
       version: 2,
@@ -138,7 +180,7 @@ test.describe("entry ordering", () => {
     await page.getByRole("button", { name: "Content", exact: true }).click();
 
     const firstHandle = page.getByRole("button", { name: /reorder item 1 in experience/i });
-    const secondItem = page.locator('[data-entry-id="experience-2"]');
+    const secondItem = page.locator('[data-entry-id="experience-1"]');
     await firstHandle.scrollIntoViewIfNeeded();
 
     const handleBox = await firstHandle.boundingBox();
@@ -155,8 +197,9 @@ test.describe("entry ordering", () => {
     await page.mouse.up();
 
     const experienceTitles = page.locator(".resume-section.kind-experience .resume-entry h4");
-    await expect(experienceTitles.first()).toHaveText("Music Tutor");
-    await expect(experienceTitles.nth(1)).toHaveText("Educational Technologist Intern");
+    await expect(experienceTitles.first()).toHaveText("Educational Technologist Intern");
+    await expect(experienceTitles.nth(1)).toHaveText("Music Tutor");
+    await expect(experienceTitles.nth(2)).toHaveText("Learning Technology Academic Tutor");
     await expect(page.getByRole("button", { name: /reorder item 1 in experience/i })).toBeVisible();
   });
 
