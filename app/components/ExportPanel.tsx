@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState, type ChangeEvent } from "react";
+import { EXPORT_QUALITY_LEVELS, getExportQuality } from "../lib/export-quality";
 import { formatBytes } from "../lib/fit";
 import { getPageGeometry } from "../lib/page-size";
 import type { ResumeData, ResumeStyle } from "../lib/resume-model";
@@ -17,6 +18,7 @@ export type ExportPanelProps = {
   onExportBackup: () => void;
   onImportBackup: (file: File) => Promise<{ ok: boolean; reason?: string; count?: number }>;
   pageCount: number;
+  paperHeight: number;
   setStyle: (update: (current: ResumeStyle) => ResumeStyle) => void;
   style: ResumeStyle;
 };
@@ -31,25 +33,35 @@ export function ExportPanel({
   onExportBackup,
   onImportBackup,
   pageCount,
+  paperHeight,
   setStyle,
   style,
 }: ExportPanelProps) {
   const [format, setFormat] = useState<ExportFormat>("pdf");
-  const [scale, setScale] = useState(2);
-  const [quality, setQuality] = useState(0.9);
+  const [qualityLevel, setQualityLevel] = useState(7);
   const [backupMessage, setBackupMessage] = useState<{ tone: "error" | "ok"; text: string } | null>(null);
   const backupInputRef = useRef<HTMLInputElement>(null);
   const geometry = getPageGeometry(style.pageSize);
+  const quality = getExportQuality(qualityLevel);
 
   const textLength = useMemo(() => JSON.stringify(data).length, [data]);
   const estimatedBytes = useMemo(() => {
-    const pixels = geometry.widthPx * geometry.heightPx * scale * scale * pageCount;
+    const pixels = geometry.widthPx * paperHeight * quality.scale * quality.scale;
     const density = Math.min(1, textLength / 9000);
     const photoBytes = data.photo ? Math.floor((data.photo.length * 3) / 4) : 0;
     if (format === "png") return pixels * (0.1 + density * 0.09) + photoBytes * 0.7;
-    if (format === "jpg") return pixels * (0.045 + density * 0.05) * quality + photoBytes * 0.45;
+    if (format === "jpg") {
+      return pixels * (0.045 + density * 0.05) * quality.jpegQuality + photoBytes * 0.45;
+    }
     return 70000 + textLength * 9 + pageCount * 38000 + photoBytes * 0.25;
-  }, [data.photo, format, geometry, pageCount, quality, scale, textLength]);
+  }, [data.photo, format, geometry.widthPx, pageCount, paperHeight, quality.jpegQuality, quality.scale, textLength]);
+
+  const outputDimensions =
+    format === "pdf"
+      ? `${geometry.note.split(" — ")[0]} · ${pageCount} ${pageCount === 1 ? "page" : "pages"}`
+      : `≈ ${Math.round(geometry.widthPx * quality.scale).toLocaleString()} × ${Math.round(
+          paperHeight * quality.scale,
+        ).toLocaleString()} px`;
 
   const handleBackupImport = async (event: ChangeEvent<HTMLInputElement>) => {
     const input = event.currentTarget;
@@ -148,61 +160,54 @@ export function ExportPanel({
       </div>
 
       {format !== "pdf" && (
-        <label className="field range-field">
+        <label className="field range-field export-quality-field">
           <span>
-            Image resolution <strong>{scale}×</strong>
+            Export quality
+            <strong>
+              Level {quality.level}/{EXPORT_QUALITY_LEVELS} · {quality.label}
+            </strong>
           </span>
           <input
-            max="3"
+            aria-label="Export quality level"
+            max={EXPORT_QUALITY_LEVELS}
             min="1"
-            onChange={(event) => setScale(Number(event.target.value))}
+            onChange={(event) => setQualityLevel(Number(event.target.value))}
             step="1"
             type="range"
-            value={scale}
+            value={quality.level}
           />
-        </label>
-      )}
-
-      {format === "jpg" && (
-        <label className="field range-field">
-          <span>
-            JPG quality <strong>{Math.round(quality * 100)}%</strong>
+          <span className="quality-scale" aria-hidden="true">
+            <small>1 · Smaller file</small>
+            <small>12 · Maximum detail</small>
           </span>
-          <input
-            max="0.98"
-            min="0.55"
-            onChange={(event) => setQuality(Number(event.target.value))}
-            step="0.01"
-            type="range"
-            value={quality}
-          />
         </label>
       )}
 
       <div className="estimate-card">
         <div>
-          <span>Approximate file size</span>
+          <span>Estimated {format.toUpperCase()} size</span>
           <strong>≈ {formatBytes(estimatedBytes)}</strong>
         </div>
         <div>
-          <span>Document length</span>
-          <strong>
-            {pageCount} {pageCount === 1 ? "page" : "pages"}
-          </strong>
+          <span>Output dimensions</span>
+          <strong>{outputDimensions}</strong>
         </div>
       </div>
 
       {format === "pdf" && (
         <p className="export-note">
           PDF opens the print dialog. Choose “Save as PDF” for selectable text and better applicant-system
-          compatibility. Set the paper size to {geometry.label} if your browser does not pick it up.
+          compatibility. Its final compression is controlled by your browser; the 12-level quality control is
+          available for PNG and JPG, where every level reliably changes the output.
         </p>
       )}
 
       <button
         className="primary-button"
         disabled={autoFitting || exporting}
-        onClick={() => onExport(format, { scale, quality })}
+        onClick={() =>
+          onExport(format, { scale: quality.scale, quality: quality.jpegQuality })
+        }
         type="button"
       >
         {autoFitting

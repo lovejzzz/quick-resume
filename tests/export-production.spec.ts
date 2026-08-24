@@ -129,6 +129,28 @@ test("downloads correctly sized Letter PNG and A4 JPG files", async ({ page }, t
   expect(a4Metadata.height).toBeGreaterThanOrEqual(a4.heightPx * 2);
 });
 
+test("twelve quality levels change JPG dimensions and file size", async ({ page }, testInfo) => {
+  await openEditor(page);
+  await openExport(page);
+  await page.getByRole("radio", { name: /^JPG/ }).click();
+  const quality = page.getByLabel("Export quality level");
+
+  await quality.fill("1");
+  const lowPath = await downloadImage(page, testInfo, "JPG", "quality-1-resume");
+  const lowMetadata = await sharp(lowPath).metadata();
+  const lowBytes = (await readFile(lowPath)).byteLength;
+
+  await openExport(page);
+  await quality.fill("12");
+  const highPath = await downloadImage(page, testInfo, "JPG", "quality-12-resume");
+  const highMetadata = await sharp(highPath).metadata();
+  const highBytes = (await readFile(highPath)).byteLength;
+
+  expect(lowMetadata.width).toBe(612);
+  expect(highMetadata.width).toBe(2448);
+  expect(highBytes).toBeGreaterThan(lowBytes);
+});
+
 test("invokes print and applies Letter and A4 print geometry", async ({ page }) => {
   await page.addInitScript(() => {
     Object.defineProperty(window, "print", {

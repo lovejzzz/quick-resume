@@ -3,6 +3,7 @@ import { tianXingExample } from "../app/examples/tian-xing";
 import { compareJobTerms } from "../app/lib/ats";
 import { summariseReview } from "../app/lib/coach";
 import { judgeAccent } from "../app/lib/contrast";
+import { EXPORT_QUALITY_LEVELS, getExportQuality } from "../app/lib/export-quality";
 import { getOcrPagePlan, parseResumeLines } from "../app/lib/import-resume";
 import { getPageGeometry } from "../app/lib/page-size";
 import { buildPreflight } from "../app/lib/preflight";
@@ -49,10 +50,16 @@ test.describe("storage migration", () => {
   });
 
   test("clamps out-of-range numbers", () => {
-    const style = coerceResumeStyle({ fitLevel: 5000, fontAdjustments: { a: 900, b: "x" } });
+    const style = coerceResumeStyle({
+      fitLevel: 5000,
+      fontAdjustments: { a: 900, b: "x" },
+      photoSize: 5000,
+    });
     expect(style.fitLevel).toBe(100);
     expect(style.fontAdjustments.a).toBe(8);
     expect(style.fontAdjustments.b).toBeUndefined();
+    expect(style.photoSize).toBe(180);
+    expect(coerceResumeStyle({ photoSize: -1 }).photoSize).toBe(48);
   });
 
   test("parses a backup and re-keys the documents", () => {
@@ -88,6 +95,20 @@ test.describe("storage migration", () => {
     expect(
       coerceResumeData({ photo: "data:image/png;base64,aGVsbG8=", sections: [] }).photo,
     ).toMatch(/^data:image\/png/);
+  });
+});
+
+test.describe("export quality", () => {
+  test("provides twelve ordered levels and clamps invalid input", () => {
+    const levels = Array.from({ length: EXPORT_QUALITY_LEVELS }, (_, index) =>
+      getExportQuality(index + 1),
+    );
+    expect(levels).toHaveLength(12);
+    expect(new Set(levels.map((level) => level.scale)).size).toBe(12);
+    expect(levels[0].scale).toBeLessThan(levels[11].scale);
+    expect(levels[0].jpegQuality).toBeLessThan(levels[11].jpegQuality);
+    expect(getExportQuality(-10).level).toBe(1);
+    expect(getExportQuality(100).level).toBe(12);
   });
 });
 

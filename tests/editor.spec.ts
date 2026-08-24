@@ -10,6 +10,8 @@ import { defaultStyle } from "../app/lib/storage";
  */
 
 const STORAGE_KEY = "quick-resume";
+const TINY_PHOTO =
+  "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9Z2S8AAAAASUVORK5CYII=";
 
 async function openEditor(page: Page) {
   await page.goto("/");
@@ -134,8 +136,7 @@ test.describe("photo placement", () => {
           updatedAt: 1,
           data: {
             ...tianXingExample,
-            photo:
-              "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9Z2S8AAAAASUVORK5CYII=",
+            photo: TINY_PHOTO,
           },
           style: { ...defaultStyle, showPhoto: true },
         },
@@ -171,6 +172,62 @@ test.describe("photo placement", () => {
       ),
     );
     expect(settledMargin).toBeGreaterThan(40);
+  });
+
+  test("resizes the photo and keeps the selected size", async ({ page }) => {
+    await seedStorage(page, {
+      version: 2,
+      activeId: "photo-size-test",
+      documents: [
+        {
+          id: "photo-size-test",
+          title: "Photo size test",
+          updatedAt: 1,
+          data: { ...tianXingExample, photo: TINY_PHOTO },
+          style: { ...defaultStyle, showPhoto: true },
+        },
+      ],
+    });
+    await openEditor(page);
+
+    const size = page.getByLabel("Photo size");
+    await expect(size).toHaveAttribute("min", "48");
+    await expect(size).toHaveAttribute("max", "180");
+    await size.fill("152");
+    await expect(page.locator(".resume-photo")).toHaveJSProperty("offsetWidth", 152);
+    await expect(page.locator(".photo-size-field")).toContainText("152px");
+    await expect(page.getByRole("button", { name: /save now/i })).toBeVisible();
+    await expect(page.getByRole("button", { name: /saved on device/i })).toBeVisible({ timeout: 5_000 });
+
+    const savedPhotoSize = await page.evaluate((key) => {
+      const workspace = JSON.parse(window.localStorage.getItem(key) ?? "{}");
+      return workspace.documents?.[0]?.style?.photoSize;
+    }, STORAGE_KEY);
+    expect(savedPhotoSize).toBe(152);
+  });
+});
+
+test.describe("export sizing", () => {
+  test("previews PDF size and offers twelve image quality levels", async ({ page }) => {
+    await openEditor(page);
+    await page.getByRole("button", { name: "Export", exact: true }).click();
+
+    await expect(page.getByText("Estimated PDF size")).toBeVisible();
+    await expect(page.getByText(/8\.5 × 11 in/)).toBeVisible();
+    await expect(page.getByLabel("Export quality level")).toHaveCount(0);
+
+    await page.getByRole("radio", { name: /^JPG/ }).click();
+    const quality = page.getByLabel("Export quality level");
+    await expect(quality).toHaveAttribute("min", "1");
+    await expect(quality).toHaveAttribute("max", "12");
+    await quality.fill("1");
+    const lowEstimate = await page.locator(".estimate-card strong").first().textContent();
+    await expect(page.locator(".estimate-card")).toContainText("≈ 612 ×");
+
+    await quality.fill("12");
+    const highEstimate = await page.locator(".estimate-card strong").first().textContent();
+    await expect(page.locator(".estimate-card")).toContainText("≈ 2,448 ×");
+    expect(highEstimate).not.toBe(lowEstimate);
   });
 });
 

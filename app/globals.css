@@ -1891,6 +1891,14 @@ button {
   width: 100%;
 }
 
+.photo-size-field {
+  margin: 0 0 14px;
+}
+
+.photo-size-field input {
+  width: 100%;
+}
+
 .photo-position-control small {
   margin-top: 8px;
   display: block;
@@ -2084,6 +2092,13 @@ button {
   accent-color: var(--accent);
 }
 
+.quality-scale {
+  margin-top: 3px;
+  color: #66716e;
+  font-size: 9px;
+  font-weight: 600;
+}
+
 .estimate-card {
   margin: 22px 0 15px;
   padding: 16px;
@@ -2110,6 +2125,7 @@ button {
 
 .estimate-card strong {
   font-size: 18px;
+  overflow-wrap: anywhere;
 }
 
 .export-note,
@@ -2400,8 +2416,6 @@ button {
 .resume-photo {
   position: absolute;
   z-index: 7;
-  width: 82px;
-  height: 82px;
   padding: 0;
   border: 0;
   border-radius: 50%;

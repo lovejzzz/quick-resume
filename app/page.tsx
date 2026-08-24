@@ -18,7 +18,7 @@ import { ResumePaper, type ActiveText } from "./components/ResumePaper";
 import { StylePanel } from "./components/StylePanel";
 import { VersionWidget } from "./components/VersionWidget";
 import { useWorkspace } from "./hooks/useWorkspace";
-import { PHOTO_GAP, PHOTO_SIZE, safeFilename } from "./lib/fit";
+import { PHOTO_GAP, safeFilename } from "./lib/fit";
 import { getPageGeometry } from "./lib/page-size";
 import { prepareResumePhoto } from "./lib/photo";
 import { importResumeFile } from "./lib/import-resume";
@@ -43,6 +43,17 @@ type Tab = "content" | "style" | "review" | "export";
 
 const TABS: Tab[] = ["content", "style", "review", "export"];
 
+const clampPhotoPosition = (
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  size: number,
+) => ({
+  x: Math.max(0, Math.min(width - size, x)),
+  y: Math.max(0, Math.min(height - size, y)),
+});
+
 export default function Home() {
   const workspace = useWorkspace();
   const { activeDocument, setData, setStyle } = workspace;
@@ -58,6 +69,7 @@ export default function Home() {
   const [activeContentAnchor, setActiveContentAnchor] = useState("identity");
   const [activeText, setActiveText] = useState<ActiveText | null>(null);
   const [pageCount, setPageCount] = useState(1);
+  const [paperHeight, setPaperHeight] = useState(0);
   const [confirmation, setConfirmation] = useState<ConfirmationRequest | null>(null);
   const [mobileSurface, setMobileSurface] = useState<"editor" | "preview">("editor");
   const [jobDescriptions, setJobDescriptions] = useState<Record<string, string>>({});
@@ -106,6 +118,7 @@ export default function Home() {
     const updatePages = () => {
       if (!resumeRef.current) return;
       const height = getResumeContentHeight();
+      setPaperHeight(resumeRef.current.scrollHeight);
       setPageCount(
         height <= geometry.printSafeHeightPx ? 1 : Math.ceil(height / geometry.printSafeHeightPx),
       );
@@ -182,8 +195,8 @@ export default function Home() {
 
         const paperBox = paper.getBoundingClientRect();
         const scale = paper.offsetWidth / paperBox.width || 1;
-        const photoRight = x + PHOTO_SIZE;
-        const photoBottom = y + PHOTO_SIZE;
+        const photoRight = x + style.photoSize;
+        const photoBottom = y + style.photoSize;
 
         for (const target of Array.from(paper.querySelectorAll<HTMLElement>("[data-photo-flow]"))) {
           const box = target.getBoundingClientRect();
@@ -228,7 +241,7 @@ export default function Home() {
         paper.classList.remove("photo-flow-measuring");
       }
     },
-    [clearPhotoFlow, data.photo, style.showPhoto],
+    [clearPhotoFlow, data.photo, style.photoSize, style.showPhoto],
   );
 
   useEffect(() => {
@@ -247,25 +260,32 @@ export default function Home() {
     [geometry.heightPx, geometry.widthPx],
   );
 
-  const clampPhoto = (x: number, y: number, width: number, height: number) => ({
-    x: Math.max(0, Math.min(width - PHOTO_SIZE, x)),
-    y: Math.max(0, Math.min(height - PHOTO_SIZE, y)),
-  });
-
   const movePhotoTo = useCallback(
     (x: number, y: number) => {
       const bounds = photoBounds();
-      const next = clampPhoto(x, y, bounds.width, bounds.height);
+      const next = clampPhotoPosition(x, y, bounds.width, bounds.height, style.photoSize);
       setStyle((current) => ({ ...current, photoX: next.x, photoY: next.y }));
     },
-    [photoBounds, setStyle],
+    [photoBounds, setStyle, style.photoSize],
   );
 
   const placePhoto = (placement: "left" | "center" | "right") => {
     const { width } = photoBounds();
     const x =
-      placement === "left" ? 54 : placement === "right" ? width - PHOTO_SIZE - 54 : (width - PHOTO_SIZE) / 2;
+      placement === "left"
+        ? 54
+        : placement === "right"
+          ? width - style.photoSize - 54
+          : (width - style.photoSize) / 2;
     movePhotoTo(x, 58);
+  };
+
+  const resizePhoto = (size: number) => {
+    const bounds = photoBounds();
+    setStyle((current) => {
+      const next = clampPhotoPosition(current.photoX, current.photoY, bounds.width, bounds.height, size);
+      return { ...current, photoSize: size, photoX: next.x, photoY: next.y };
+    });
   };
 
   const startPhotoDrag = (event: ReactPointerEvent<HTMLButtonElement>) => {
@@ -294,11 +314,12 @@ export default function Home() {
   const movePhotoPointer = (event: ReactPointerEvent<HTMLButtonElement>) => {
     const session = photoDragRef.current;
     if (!session || event.pointerId !== session.pointerId) return;
-    const next = clampPhoto(
+    const next = clampPhotoPosition(
       style.photoX + (event.clientX - session.startClientX) * session.scale,
       style.photoY + (event.clientY - session.startClientY) * session.scale,
       session.paperWidth,
       session.paperHeight,
+      style.photoSize,
     );
     session.x = next.x;
     session.y = next.y;
@@ -931,6 +952,7 @@ export default function Home() {
                 onApplyTheme={applyResumeTheme}
                 onPhotoChange={handlePhoto}
                 onPlacePhoto={placePhoto}
+                onResizePhoto={resizePhoto}
                 onRemovePhoto={() => {
                   setData((current) => ({ ...current, photo: "" }));
                   setStyle((current) => ({ ...current, showPhoto: false }));
@@ -977,6 +999,7 @@ export default function Home() {
                 onExportBackup={handleExportBackup}
                 onImportBackup={handleImportBackup}
                 pageCount={pageCount}
+                paperHeight={paperHeight || geometry.heightPx}
                 setStyle={setStyle}
                 style={style}
               />

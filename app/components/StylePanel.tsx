@@ -2,6 +2,7 @@
 
 import { useRef, type ChangeEvent } from "react";
 import { judgeAccent } from "../lib/contrast";
+import { MAX_PHOTO_SIZE, MIN_PHOTO_SIZE } from "../lib/fit";
 import { pageGeometries } from "../lib/page-size";
 import { getResumeFont, resumeFonts } from "../lib/resume-fonts";
 import type { PageSize, ResumeData, ResumeLayout, ResumeStyle } from "../lib/resume-model";
@@ -12,6 +13,7 @@ export type StylePanelProps = {
   onApplyTheme: (layout: ResumeLayout) => void;
   onPhotoChange: (event: ChangeEvent<HTMLInputElement>) => void;
   onPlacePhoto: (placement: "left" | "center" | "right") => void;
+  onResizePhoto: (size: number) => void;
   onRemovePhoto: () => void;
   onReset: () => void;
   photoError: string;
@@ -24,6 +26,7 @@ export function StylePanel({
   onApplyTheme,
   onPhotoChange,
   onPlacePhoto,
+  onResizePhoto,
   onRemovePhoto,
   onReset,
   photoError,
@@ -226,7 +229,21 @@ export function StylePanel({
         </label>
         {data.photo && style.showPhoto && (
           <fieldset className="photo-position-control">
-            <legend>Quick placement</legend>
+            <legend>Photo size and placement</legend>
+            <label className="field range-field photo-size-field">
+              <span>
+                Photo size <strong>{style.photoSize}px</strong>
+              </span>
+              <input
+                aria-label="Photo size"
+                max={MAX_PHOTO_SIZE}
+                min={MIN_PHOTO_SIZE}
+                onChange={(event) => onResizePhoto(Number(event.target.value))}
+                step="4"
+                type="range"
+                value={style.photoSize}
+              />
+            </label>
             <div className="segmented">
               {(["left", "center", "right"] as const).map((position) => (
                 <button key={position} onClick={() => onPlacePhoto(position)} type="button">

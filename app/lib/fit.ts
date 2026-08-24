@@ -1,7 +1,9 @@
 import type { CSSProperties } from "react";
 import type { ResumeEntry, ResumeStyle, SectionKind } from "./resume-model";
 
-export const PHOTO_SIZE = 82;
+export const DEFAULT_PHOTO_SIZE = 82;
+export const MAX_PHOTO_SIZE = 180;
+export const MIN_PHOTO_SIZE = 48;
 export const PHOTO_GAP = 14;
 
 export const sectionTemplates: Record<SectionKind, { title: string; entry: Omit<ResumeEntry, "id"> }> = {

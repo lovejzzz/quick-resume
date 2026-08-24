@@ -7,7 +7,7 @@ import type {
   RefObject,
 } from "react";
 import { InlineEdit } from "./InlineEdit";
-import { PHOTO_SIZE, resumeFitVariables } from "../lib/fit";
+import { resumeFitVariables } from "../lib/fit";
 import { getPageGeometry } from "../lib/page-size";
 import { getResumeFont } from "../lib/resume-fonts";
 import type { ResumeData, ResumeEntry, ResumeSection, ResumeStyle } from "../lib/resume-model";
@@ -92,12 +92,17 @@ export function ResumePaper({
           onPointerMove={onPhotoPointerMove}
           onPointerUp={onPhotoPointerFinish}
           ref={photoRef}
-          style={{ left: `${style.photoX}px`, top: `${style.photoY}px` }}
+          style={{
+            height: `${style.photoSize}px`,
+            left: `${style.photoX}px`,
+            top: `${style.photoY}px`,
+            width: `${style.photoSize}px`,
+          }}
           title="Drag anywhere · Arrow keys move precisely · Shift moves faster"
           type="button"
         >
           {/* eslint-disable-next-line @next/next/no-img-element -- user data URL, not an optimizable asset */}
-          <img alt="" draggable={false} height={PHOTO_SIZE} src={data.photo} width={PHOTO_SIZE} />
+          <img alt="" draggable={false} height={style.photoSize} src={data.photo} width={style.photoSize} />
           <span aria-hidden="true" className="photo-move-glyph">
             ↗
           </span>

@@ -55,6 +55,7 @@ export type ResumeStyle = {
   fontAdjustments: Record<string, number>;
   layout: ResumeLayout;
   pageSize: PageSize;
+  photoSize: number;
   photoX: number;
   photoY: number;
   resumeFont: ResumeFontId;

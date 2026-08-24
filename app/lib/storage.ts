@@ -12,6 +12,7 @@ import {
   type SectionKind,
 } from "./resume-model";
 import { getResumeTheme } from "./resume-themes";
+import { DEFAULT_PHOTO_SIZE, MAX_PHOTO_SIZE, MIN_PHOTO_SIZE } from "./fit";
 
 export const STORAGE_KEY = "quick-resume";
 export const RECOVERY_KEY = "quick-resume:recovery";
@@ -34,6 +35,7 @@ export const defaultStyle: ResumeStyle = {
   fontAdjustments: {},
   layout: "modern",
   pageSize: "letter",
+  photoSize: DEFAULT_PHOTO_SIZE,
   photoX: 664,
   photoY: 66,
   resumeFont: "calibri",
@@ -154,6 +156,11 @@ export function coerceResumeStyle(value: unknown): ResumeStyle {
     fontAdjustments,
     layout: getResumeTheme(layout).id === layout ? layout : defaultStyle.layout,
     pageSize: (raw.pageSize === "a4" ? "a4" : "letter") as PageSize,
+    photoSize: clamp(
+      Math.round(asNumber(raw.photoSize, defaultStyle.photoSize)),
+      MIN_PHOTO_SIZE,
+      MAX_PHOTO_SIZE,
+    ),
     photoX: asNumber(raw.photoX, defaultStyle.photoX),
     photoY: asNumber(raw.photoY, defaultStyle.photoY),
     resumeFont: getResumeFont(raw.resumeFont as ResumeStyle["resumeFont"]).id,
