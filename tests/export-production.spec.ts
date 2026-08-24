@@ -77,7 +77,8 @@ async function downloadImage(
 
 async function inspectPdf(path: string, expected: { height: number; width: number }) {
   const data = new Uint8Array(await readFile(path));
-  const document = await getDocument({ data, disableWorker: true }).promise;
+  const loadingTask = getDocument({ data, disableWorker: true });
+  const document = await loadingTask.promise;
   try {
     expect(document.numPages).toBe(1);
     const page = await document.getPage(1);
@@ -91,7 +92,7 @@ async function inspectPdf(path: string, expected: { height: number; width: numbe
     expect(text).toContain("Tian Xing");
     expect(text).toContain("Educational Technologist Intern");
   } finally {
-    await document.destroy();
+    await loadingTask.destroy();
   }
 }
 

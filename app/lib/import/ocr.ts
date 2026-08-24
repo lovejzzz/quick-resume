@@ -185,6 +185,7 @@ export async function ocrPdf(data: ArrayBuffer, options: OcrOptions = {}): Promi
     });
   };
 
+  let loadingTask: ReturnType<typeof pdfjs.getDocument> | null = null;
   let document: Awaited<ReturnType<typeof pdfjs.getDocument>["promise"]> | null = null;
   const lines: TextLine[] = [];
   const uncertain = new Set<string>();
@@ -195,7 +196,8 @@ export async function ocrPdf(data: ArrayBuffer, options: OcrOptions = {}): Promi
 
   try {
     throwIfAborted();
-    document = await pdfjs.getDocument({ data: data.slice(0) }).promise;
+    loadingTask = pdfjs.getDocument({ data: data.slice(0) });
+    document = await loadingTask.promise;
     throwIfAborted();
     totalPages = document.numPages;
     pageCount = getOcrPagePlan(totalPages, maxPages).pagesToRead;
@@ -256,7 +258,7 @@ export async function ocrPdf(data: ArrayBuffer, options: OcrOptions = {}): Promi
     // finish in the background once the worker responds.
     if (signal?.aborted) void terminateWorker();
     else await terminateWorker();
-    await document?.destroy().catch(() => undefined);
+    await loadingTask?.destroy().catch(() => undefined);
   }
 
   onProgress?.({ phase: "recognising", ratio: 1, page: pageCount, pages: pageCount });

@@ -181,7 +181,7 @@ export type PdfExtraction = {
 
 /** Loads pdf.js on demand and points it at its bundled worker. */
 export async function loadPdfjs() {
-  // pdf.js v5 relies on a proposal-stage Map method for every render path.
+  // pdf.js relies on proposal-stage Map helpers in some render paths.
   ensureMapHelpers();
   const pdfjs = await import("pdfjs-dist");
   pdfjs.GlobalWorkerOptions.workerSrc = new URL(
@@ -241,9 +241,10 @@ export async function extractPdf(file: File): Promise<PdfExtraction> {
   const data = await file.arrayBuffer();
   // pdf.js takes ownership of the buffer it is given, so hand it a copy and
   // keep the original for a possible OCR pass.
-  const document = await pdfjs.getDocument({ data: data.slice(0) }).promise;
+  const loadingTask = pdfjs.getDocument({ data: data.slice(0) });
+  const document = await loadingTask.promise;
   if (document.numPages > MAX_PDF_PAGES) {
-    await document.destroy();
+    await loadingTask.destroy();
     throw new Error("PDF_PAGE_LIMIT");
   }
   const lines: TextLine[] = [];
@@ -299,7 +300,7 @@ export async function extractPdf(file: File): Promise<PdfExtraction> {
       });
     }
   } finally {
-    await document.destroy();
+    await loadingTask.destroy();
   }
   return { lines, health: diagnose(stats), data, pages: stats.length };
 }
