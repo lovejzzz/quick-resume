@@ -26,6 +26,7 @@ export function SortableSectionCard({
 }: SortableSectionCardProps) {
   const { attributes, isDragging, listeners, setNodeRef, transform, transition } = useSortable({
     id: section.id,
+    data: { type: "section" },
     transition: { duration: 260, easing: "cubic-bezier(0.22, 1, 0.36, 1)" },
   });
 

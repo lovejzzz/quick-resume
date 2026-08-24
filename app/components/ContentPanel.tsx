@@ -8,6 +8,7 @@ import {
   PointerSensor,
   useSensor,
   useSensors,
+  type CollisionDetection,
   type DragEndEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
@@ -19,6 +20,7 @@ import {
 } from "@dnd-kit/sortable";
 import { useRef, useState, type ChangeEvent, type RefObject } from "react";
 import { SchoolAutocomplete } from "./SchoolAutocomplete";
+import { SortableEntryEditor } from "./SortableEntryEditor";
 import { SortableSectionCard } from "./SortableSectionCard";
 import { sectionTemplates } from "../lib/fit";
 import {
@@ -49,6 +51,20 @@ export type ContentPanelProps = {
   setData: (update: (current: ResumeData) => ResumeData) => void;
 };
 
+type ActiveDrag =
+  | { id: string; type: "section" }
+  | { id: string; sectionId: string; type: "entry" };
+
+const scopedCollisionDetection: CollisionDetection = (args) => {
+  const activeType = args.active.data.current?.type;
+  const activeSectionId = args.active.data.current?.sectionId;
+  const droppableContainers = args.droppableContainers.filter((container) => {
+    if (container.data.current?.type !== activeType) return false;
+    return activeType !== "entry" || container.data.current?.sectionId === activeSectionId;
+  });
+  return closestCenter({ ...args, droppableContainers });
+};
+
 export function ContentPanel({
   activeAnchor,
   data,
@@ -59,7 +75,7 @@ export function ContentPanel({
   onScrollTo,
   setData,
 }: ContentPanelProps) {
-  const [draggedSection, setDraggedSection] = useState<string | null>(null);
+  const [activeDrag, setActiveDrag] = useState<ActiveDrag | null>(null);
   const [importing, setImporting] = useState(false);
   const [importMessage, setImportMessage] = useState<{ tone: "error" | "ok"; text: string } | null>(null);
   const [ocrOffer, setOcrOffer] = useState<OcrRetry | null>(null);
@@ -109,11 +125,38 @@ export function ContentPanel({
       return { ...current, sections };
     });
 
+  const moveEntry = (sectionId: string, entryId: string, direction: -1 | 1) =>
+    setData((current) => ({
+      ...current,
+      sections: current.sections.map((section) => {
+        if (section.id !== sectionId) return section;
+        const index = section.entries.findIndex((entry) => entry.id === entryId);
+        const target = index + direction;
+        if (index < 0 || target < 0 || target >= section.entries.length) return section;
+        return { ...section, entries: arrayMove(section.entries, index, target) };
+      }),
+    }));
+
   const finishDrag = (event: DragEndEvent) => {
-    setDraggedSection(null);
+    setActiveDrag(null);
     const sourceId = String(event.active.id);
     const targetId = event.over ? String(event.over.id) : null;
     if (!targetId || sourceId === targetId) return;
+    if (event.active.data.current?.type === "entry") {
+      const sectionId = String(event.active.data.current.sectionId || "");
+      if (event.over?.data.current?.sectionId !== sectionId) return;
+      setData((current) => ({
+        ...current,
+        sections: current.sections.map((section) => {
+          if (section.id !== sectionId) return section;
+          const from = section.entries.findIndex((entry) => entry.id === sourceId);
+          const to = section.entries.findIndex((entry) => entry.id === targetId);
+          if (from < 0 || to < 0) return section;
+          return { ...section, entries: arrayMove(section.entries, from, to) };
+        }),
+      }));
+      return;
+    }
     setData((current) => {
       const from = current.sections.findIndex((section) => section.id === sourceId);
       const to = current.sections.findIndex((section) => section.id === targetId);
@@ -391,10 +434,18 @@ export function ContentPanel({
           </div>
 
           <DndContext
-            collisionDetection={closestCenter}
-            onDragCancel={() => setDraggedSection(null)}
+            collisionDetection={scopedCollisionDetection}
+            onDragCancel={() => setActiveDrag(null)}
             onDragEnd={finishDrag}
-            onDragStart={(event: DragStartEvent) => setDraggedSection(String(event.active.id))}
+            onDragStart={(event: DragStartEvent) => {
+              const id = String(event.active.id);
+              const sectionId = event.active.data.current?.sectionId;
+              setActiveDrag(
+                event.active.data.current?.type === "entry" && sectionId
+                  ? { id, sectionId: String(sectionId), type: "entry" }
+                  : { id, type: "section" },
+              );
+            }}
             sensors={sensors}
           >
             <SortableContext
@@ -417,25 +468,29 @@ export function ContentPanel({
                     section={section}
                     sectionCount={data.sections.length}
                   >
-                    <div className="entry-stack">
-                      {section.entries.map((entry, entryIndex) => (
-                        <div className="entry-editor" key={entry.id}>
-                          {section.kind !== "summary" && (
-                            <div className="entry-editor-head">
-                              <span>Item {entryIndex + 1}</span>
-                              <button
-                                aria-label={`Remove item ${entryIndex + 1} from ${section.title}`}
-                                onClick={() =>
-                                  updateSection(section.id, {
-                                    entries: section.entries.filter((item) => item.id !== entry.id),
-                                  })
-                                }
-                                type="button"
-                              >
-                                Remove
-                              </button>
-                            </div>
-                          )}
+                    <SortableContext
+                      disabled={section.kind === "summary"}
+                      id={`entries-${section.id}`}
+                      items={section.entries.map((entry) => entry.id)}
+                      strategy={verticalListSortingStrategy}
+                    >
+                      <div className="entry-stack">
+                        {section.entries.map((entry, entryIndex) => (
+                          <SortableEntryEditor
+                            entry={entry}
+                            index={entryIndex}
+                            itemCount={section.entries.length}
+                            key={entry.id}
+                            onMove={(direction) => moveEntry(section.id, entry.id, direction)}
+                            onRemove={() =>
+                              updateSection(section.id, {
+                                entries: section.entries.filter((item) => item.id !== entry.id),
+                              })
+                            }
+                            sectionId={section.id}
+                            sectionTitle={section.title}
+                            sortable={section.kind !== "summary"}
+                          >
 
                           {section.kind !== "summary" && (
                             <div className="field-grid two">
@@ -527,9 +582,10 @@ export function ContentPanel({
                               />
                             </label>
                           )}
-                        </div>
-                      ))}
-                    </div>
+                          </SortableEntryEditor>
+                        ))}
+                      </div>
+                    </SortableContext>
 
                     {section.kind !== "summary" && (
                       <button className="text-button" onClick={() => addEntry(section)} type="button">
@@ -544,15 +600,29 @@ export function ContentPanel({
               adjustScale={false}
               dropAnimation={{ duration: 280, easing: "cubic-bezier(0.22, 1, 0.36, 1)" }}
             >
-              {draggedSection ? (
+              {activeDrag?.type === "section" ? (
                 <div className="section-drag-overlay">
                   <span aria-hidden="true" className="overlay-grip">
                     <i />
                     <i />
                     <i />
                   </span>
-                  <strong>{data.sections.find((section) => section.id === draggedSection)?.title}</strong>
+                  <strong>{data.sections.find((section) => section.id === activeDrag.id)?.title}</strong>
                   <small>Move to reorder</small>
+                </div>
+              ) : activeDrag?.type === "entry" ? (
+                <div className="entry-drag-overlay">
+                  <span aria-hidden="true" className="overlay-grip">
+                    <i />
+                    <i />
+                    <i />
+                  </span>
+                  <strong>
+                    {data.sections
+                      .find((section) => section.id === activeDrag.sectionId)
+                      ?.entries.find((entry) => entry.id === activeDrag.id)?.heading || "Untitled item"}
+                  </strong>
+                  <small>Move within section</small>
                 </div>
               ) : null}
             </DragOverlay>

@@ -1123,10 +1123,19 @@ button {
 }
 
 .entry-editor {
+  position: relative;
   padding: 14px;
   display: grid;
   gap: 12px;
   border-bottom: 1px solid #edf0ef;
+  transform-origin: center;
+  will-change: transform;
+}
+
+.entry-editor.sorting-source {
+  opacity: 0.28;
+  background: #f3f8f6;
+  box-shadow: inset 3px 0 #5d8984;
 }
 
 .entry-editor-head {
@@ -1139,14 +1148,121 @@ button {
   text-transform: uppercase;
 }
 
-.entry-editor-head button {
-  border: 0;
+.entry-order-label,
+.entry-actions {
+  display: flex;
+  align-items: center;
+}
+
+.entry-order-label {
+  gap: 7px;
+}
+
+.entry-actions {
+  gap: 3px;
+}
+
+.entry-drag-handle {
+  width: 25px;
+  height: 25px;
   padding: 0;
+  display: grid;
+  place-content: center;
+  gap: 2px;
+  border: 0;
+  border-radius: 6px;
+  color: #98a29f;
   background: transparent;
-  color: #9a6565;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.entry-drag-handle:hover,
+.entry-drag-handle:focus-visible {
+  color: #356b66;
+  background: #e8f1ef;
+  outline: none;
+}
+
+.entry-drag-handle:active,
+.entry-drag-handle[aria-pressed="true"] {
+  cursor: grabbing;
+}
+
+.entry-drag-handle i {
+  width: 11px;
+  height: 1.5px;
+  display: block;
+  border-radius: 999px;
+  background: currentColor;
+  pointer-events: none;
+}
+
+.entry-actions button {
+  border: 0;
+  min-width: 25px;
+  height: 25px;
+  padding: 0 6px;
+  border-radius: 6px;
+  background: transparent;
+  color: #77827f;
   cursor: pointer;
   font-size: 10px;
   font-weight: 700;
+}
+
+.entry-actions button:hover:not(:disabled),
+.entry-actions button:focus-visible {
+  color: #356b66;
+  background: #e8f1ef;
+  outline: none;
+}
+
+.entry-actions button:disabled {
+  opacity: 0.28;
+  cursor: default;
+}
+
+.entry-actions .entry-remove-action {
+  color: #9a6565;
+}
+
+.entry-actions .entry-remove-action:hover,
+.entry-actions .entry-remove-action:focus-visible {
+  color: #913c3c;
+  background: #f9e8e8;
+}
+
+.entry-drag-overlay {
+  width: min(420px, 75vw);
+  min-height: 48px;
+  padding: 9px 13px;
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid rgba(111, 150, 144, 0.62);
+  border-radius: 12px;
+  color: #29433f;
+  background: rgba(252, 254, 253, 0.96);
+  box-shadow: 0 18px 44px rgba(23, 51, 46, 0.2);
+  backdrop-filter: blur(18px) saturate(1.2);
+}
+
+.entry-drag-overlay strong {
+  overflow: hidden;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.entry-drag-overlay small {
+  color: #84908d;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .text-button {
